@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session, joinedload
 
 from app.core.database import get_db
-from app.models import Recipe, RecipeIngredient
+from app.models import Ingredient, Recipe, RecipeIngredient
 from app.schemas.recipe import RecipeRead, RecipeWithIngredientsRead
 
 
@@ -21,7 +21,9 @@ def get_recipe(recipe_id: int, db: Session = Depends(get_db)) -> Recipe:
     recipe = (
         db.query(Recipe)
         .options(
-            joinedload(Recipe.recipe_ingredients).joinedload(RecipeIngredient.ingredient),
+            joinedload(Recipe.recipe_ingredients)
+            .joinedload(RecipeIngredient.ingredient)
+            .joinedload(Ingredient.nutrition),
         )
         .filter(Recipe.id == recipe_id)
         .first()

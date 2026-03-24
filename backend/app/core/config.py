@@ -13,7 +13,7 @@ class Settings(BaseModel):
     PROJECT_NAME: str = "Sprout Recipe Developer"
     DATABASE_URL: str = os.getenv(
         "DATABASE_URL",
-        "postgresql://postgres:postgres@localhost:5432/sprout_recipe_developer",
+        "sqlite:///./sprout_recipe_developer.db",
     )
 
 

@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, Float, ForeignKey, Integer, String
+from sqlalchemy import Boolean, CheckConstraint, Float, ForeignKey, Integer, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -12,11 +12,19 @@ if TYPE_CHECKING:
 
 class RecipeIngredient(Base):
     __tablename__ = "recipe_ingredients"
+    __table_args__ = (
+        UniqueConstraint("recipe_id", "ingredient_id", name="uq_recipe_ingredients_recipe_ingredient"),
+        CheckConstraint("quantity >= 0", name="ck_recipe_ingredients_quantity_nonnegative"),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    recipe_id: Mapped[int] = mapped_column(ForeignKey("recipes.id"), nullable=False, index=True)
+    recipe_id: Mapped[int] = mapped_column(
+        ForeignKey("recipes.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
     ingredient_id: Mapped[int] = mapped_column(
-        ForeignKey("ingredients.id"),
+        ForeignKey("ingredients.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )

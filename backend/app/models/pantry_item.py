@@ -1,7 +1,18 @@
 from datetime import date
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, Date, DateTime, Float, ForeignKey, Integer, String, func
+from sqlalchemy import (
+    Boolean,
+    CheckConstraint,
+    Date,
+    DateTime,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    func,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -12,11 +23,19 @@ if TYPE_CHECKING:
 
 class PantryItem(Base):
     __tablename__ = "pantry_items"
+    __table_args__ = (
+        CheckConstraint("quantity >= 0", name="ck_pantry_items_quantity_nonnegative"),
+        CheckConstraint(
+            "detected_confidence IS NULL OR (detected_confidence >= 0 AND detected_confidence <= 1)",
+            name="ck_pantry_items_detected_confidence_range",
+        ),
+        Index("ix_pantry_items_user_id_estimated_expiry_date", "user_id", "estimated_expiry_date"),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     user_id: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     ingredient_id: Mapped[int] = mapped_column(
-        ForeignKey("ingredients.id"),
+        ForeignKey("ingredients.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
