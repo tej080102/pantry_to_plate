@@ -1,4 +1,4 @@
-# Sprout: AI-Powered Recipe Developer
+# Pantry to Plate: AI-Powered Recipe Developer
 
 Turn your fridge into intelligent meals. Reduce food waste. Optimize nutrition.
 
@@ -6,7 +6,7 @@ Turn your fridge into intelligent meals. Reduce food waste. Optimize nutrition.
 
 ## Overview
 
-Sprout is an AI-powered full-stack application that helps users generate recipes from available ingredients while prioritizing items that are close to spoiling.
+Pantry to Plate is an AI-powered full-stack application that helps users generate recipes from available ingredients while prioritizing items that are close to spoiling.
 
 Users upload a photo of their fridge → the system detects ingredients → ranks them based on spoilage → and generates structured recipes using a database-first + LLM hybrid approach.
 
@@ -14,7 +14,7 @@ Users upload a photo of their fridge → the system detects ingredients → rank
 
 ## Core Idea
 
-Instead of randomly generating recipes, Sprout ensures:
+Instead of randomly generating recipes, Pantry to Plate ensures:
 - Expiring ingredients are used first (FIFO logic)
 - Recipes are grounded in real data (not hallucinated)
 - Nutrition is calculated and surfaced to users
