@@ -1,8 +1,8 @@
-# Sprout Recipe Developer — Backend
+# Pantry to Plate Recipe Developer: Backend
 
 ## Overview
 
-The Sprout backend is a FastAPI-based service that powers an AI-driven system to reduce food waste and generate recipes from available ingredients. It provides the core data models, APIs, and storage layer required for ingredient management, pantry tracking, and recipe retrieval.
+The Pantry to Plate backend is a FastAPI-based service that powers an AI-driven system to reduce food waste and generate recipes from available ingredients. It provides the core data models, APIs, and storage layer required for ingredient management, pantry tracking, and recipe retrieval.
 
 This backend is designed to support:
 - Ingredient ingestion and normalization

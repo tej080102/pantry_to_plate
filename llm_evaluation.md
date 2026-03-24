@@ -1,4 +1,4 @@
-# LLM Evaluation for Recipe Generation in Sprout
+# LLM Evaluation for Recipe Generation in Pantry to Plate
 
 ## Task
 Research and evaluate different large language model approaches for generating recipes based on available ingredients, with a focus on grounded generation using structured inputs and strict JSON outputs.
@@ -7,7 +7,7 @@ Research and evaluate different large language model approaches for generating r
 
 ## Objective
 
-The goal of this evaluation is to identify an LLM approach that can generate useful, consistent, and grounded recipes from detected pantry ingredients while minimizing hallucinations. Since Sprout is designed as a recipe assistant that prioritizes expiring ingredients, the selected LLM must work well with structured inputs and reliably return machine-readable outputs that can be rendered directly in the application.
+The goal of this evaluation is to identify an LLM approach that can generate useful, consistent, and grounded recipes from detected pantry ingredients while minimizing hallucinations. Since Pantry to Plate is designed as a recipe assistant that prioritizes expiring ingredients, the selected LLM must work well with structured inputs and reliably return machine-readable outputs that can be rendered directly in the application.
 
 ---
 
