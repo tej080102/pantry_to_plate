@@ -10,10 +10,10 @@ load_dotenv()
 class Settings(BaseModel):
     """Application settings loaded from environment variables."""
 
-    PROJECT_NAME: str = "Sprout Recipe Developer"
+    PROJECT_NAME: str = "Pantry to Plate"
     DATABASE_URL: str = os.getenv(
         "DATABASE_URL",
-        "sqlite:///./sprout_recipe_developer.db",
+        "sqlite:///./pantry_to_plate.db",
     )
 
 

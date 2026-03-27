@@ -25,4 +25,4 @@ app.include_router(recipes_router)
 @app.get("/health", tags=["health"])
 def health_check() -> dict[str, str]:
     """Simple health endpoint for load balancers and uptime checks."""
-    return {"status": "ok", "service": "sprout-backend"}
+    return {"status": "ok", "service": "pantry_to_plate-backend"}

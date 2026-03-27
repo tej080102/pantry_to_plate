@@ -73,7 +73,7 @@ def seed_data() -> None:
 
         salad = Recipe(
             title="Simple Spinach Tomato Salad",
-            source_name="Sprout Demo",
+            source_name="pantry_to_plate_demo",
             source_url="https://example.com/spinach-tomato-salad",
             instructions="Combine chopped spinach and tomato, then drizzle with olive oil.",
             estimated_cook_time_minutes=10,

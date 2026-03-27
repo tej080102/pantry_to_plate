@@ -3,7 +3,7 @@
 This backend uses SQLite for local development by default:
 
 ```env
-DATABASE_URL=sqlite:///./sprout_recipe_developer.db
+DATABASE_URL=sqlite:///./pantry_to_plate.db
 ```
 
 The intended production target is Google Cloud SQL for PostgreSQL. A typical SQLAlchemy connection string for Cloud SQL PostgreSQL looks like:
@@ -14,8 +14,8 @@ DATABASE_URL=postgresql+psycopg2://DB_USER:DB_PASSWORD@DB_HOST:5432/DB_NAME
 
 Examples:
 
-- Local Cloud SQL Auth Proxy: `postgresql+psycopg2://app_user:secret@127.0.0.1:5432/sprout_recipe_developer`
-- Private IP or VPC-connected instance: `postgresql+psycopg2://app_user:secret@10.x.x.x:5432/sprout_recipe_developer`
+- Local Cloud SQL Auth Proxy: `postgresql+psycopg2://app_user:secret@127.0.0.1:5432/pantry_to_plate`
+- Private IP or VPC-connected instance: `postgresql+psycopg2://app_user:secret@10.x.x.x:5432/pantry_to_plate`
 
 ## Creating the schema in Cloud SQL
 
