@@ -29,8 +29,12 @@ The backend uses a relational schema optimized for food and recipe data:
 ### Core Entities
 
 - **Ingredient**
-  - Nutritional metadata (calories, protein, etc.)
+  - Canonical ingredient metadata
   - Shelf-life estimation for spoilage tracking
+
+- **IngredientNutrition**
+  - One-to-one nutrition facts linked to an ingredient
+  - Keeps nutrition normalized outside the ingredient record
 
 - **Recipe**
   - Structured instructions and metadata
@@ -49,6 +53,11 @@ This design supports:
 - Efficient recipe matching
 - Nutrition-based filtering
 - Expiry-aware ingredient prioritization
+
+SQL artifacts for PostgreSQL / Cloud SQL are available in:
+- `db/schema.sql`
+- `db/seed.sql`
+- `db/validation_queries.sql`
 
 ---
 
@@ -72,3 +81,12 @@ This design supports:
 ### 1. Install dependencies
 ```bash
 pip install -r requirements.txt
+```
+
+### 2. Configure environment
+The backend reads configuration from `backend/.env`.
+
+Default local configuration:
+```env
+DATABASE_URL=sqlite:///./pantry_to_plate.db
+```

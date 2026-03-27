@@ -17,14 +17,32 @@ Examples:
 - Local Cloud SQL Auth Proxy: `postgresql+psycopg2://app_user:secret@127.0.0.1:5432/pantry_to_plate`
 - Private IP or VPC-connected instance: `postgresql+psycopg2://app_user:secret@10.x.x.x:5432/pantry_to_plate`
 
+## Implemented in this repository
+
+- SQLAlchemy ORM models under `app/models`
+- PostgreSQL-compatible schema script at `db/schema.sql`
+- Sample data script at `db/seed.sql`
+- Validation query script at `db/validation_queries.sql`
+- Environment file at `.env`
+
 ## Creating the schema in Cloud SQL
 
 1. Create a PostgreSQL Cloud SQL instance and database.
-2. Set `DATABASE_URL` to the Cloud SQL PostgreSQL connection string.
+2. Set `DATABASE_URL` in `.env` to the Cloud SQL PostgreSQL connection string.
 3. Install the backend dependencies from `requirements.txt`.
-4. Run the application or a schema bootstrap step so SQLAlchemy executes `Base.metadata.create_all(bind=engine)`.
+4. Apply the schema manually in Cloud SQL using `db/schema.sql`.
+5. Optionally load demo data with `db/seed.sql`.
+6. Run `db/validation_queries.sql` to verify retrieval behavior.
 
-For this class project, `create_all()` is enough to stand up the schema quickly. In a more production-ready deployment, the next step would be introducing Alembic migrations and running those against the Cloud SQL database instead of relying on startup table creation.
+Example with `psql` against a Cloud SQL Auth Proxy connection:
+
+```bash
+psql "postgresql://DB_USER:DB_PASSWORD@127.0.0.1:5432/pantry_to_plate" -f db/schema.sql
+psql "postgresql://DB_USER:DB_PASSWORD@127.0.0.1:5432/pantry_to_plate" -f db/seed.sql
+psql "postgresql://DB_USER:DB_PASSWORD@127.0.0.1:5432/pantry_to_plate" -f db/validation_queries.sql
+```
+
+The FastAPI app still supports local bootstrap via `Base.metadata.create_all(bind=engine)`, but Cloud SQL creation is currently a manual execution step. No Cloud SQL instance provisioning, credentials, or deployment automation is implemented in this repository.
 
 ## Project posture
 
