@@ -1,16 +1,15 @@
 from fastapi import FastAPI
+from sqlalchemy import text
 
 import app.models
 from app.api.routes import ingredients_router, recipes_router
 from app.core.config import settings
 from app.core.database import Base, engine
 
-
 app = FastAPI(
     title=settings.PROJECT_NAME,
     version="0.1.0",
 )
-
 
 @app.on_event("startup")
 def create_tables() -> None:
@@ -18,11 +17,19 @@ def create_tables() -> None:
     Base.metadata.create_all(bind=engine)
 
 
+#(Cloud SQL check)
+@app.get("/ingredients-test")
+def test_db():
+    with engine.connect() as conn:
+        rows = conn.execute(text("SELECT * FROM ingredients LIMIT 10")).fetchall()
+        return [dict(row._mapping) for row in rows]
+
+
+# existing routers
 app.include_router(ingredients_router)
 app.include_router(recipes_router)
 
 
 @app.get("/health", tags=["health"])
 def health_check() -> dict[str, str]:
-    """Simple health endpoint for load balancers and uptime checks."""
-    return {"status": "ok", "service": "sprout-backend"}
+    return {"status": "ok", "service": "pantry_to_plate-backend"}

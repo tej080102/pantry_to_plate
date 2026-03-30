@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.core.database import get_db
-from app.models import Ingredient
+from app.models import Ingredient, IngredientNutrition
 from app.schemas.ingredient import IngredientCreate, IngredientRead
 
 
@@ -12,7 +12,12 @@ router = APIRouter(prefix="/ingredients", tags=["ingredients"])
 @router.get("", response_model=list[IngredientRead])
 def list_ingredients(db: Session = Depends(get_db)) -> list[Ingredient]:
     """Return all ingredients ordered by name for predictable API output."""
-    return db.query(Ingredient).order_by(Ingredient.name.asc()).all()
+    return (
+        db.query(Ingredient)
+        .options(joinedload(Ingredient.nutrition))
+        .order_by(Ingredient.name.asc())
+        .all()
+    )
 
 
 @router.post(
@@ -36,7 +41,11 @@ def create_ingredient(
             detail="Ingredient with this name already exists",
         )
 
-    ingredient = Ingredient(**ingredient_in.model_dump())
+    ingredient_data = ingredient_in.model_dump(exclude={"nutrition"})
+    ingredient = Ingredient(**ingredient_data)
+    if ingredient_in.nutrition is not None:
+        ingredient.nutrition = IngredientNutrition(**ingredient_in.nutrition.model_dump())
+
     db.add(ingredient)
     db.commit()
     db.refresh(ingredient)

@@ -1,1 +1,1 @@
-"""Sprout Recipe Developer backend package."""
+"""Pantry to Plate backend package."""
