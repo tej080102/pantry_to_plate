@@ -2,3 +2,12 @@ __pycache__/
 *.pyc
 .env
 venv/
+ptp/
+backend/data/raw/*
+backend/data/raw/usda_foundation/*
+backend/data/clean/*
+backend/data/clean/usda_foundation/*
+!backend/data/raw/.gitkeep
+!backend/data/raw/usda_foundation/.gitkeep
+!backend/data/clean/.gitkeep
+!backend/data/clean/usda_foundation/.gitkeep
