@@ -1,24 +1,18 @@
-from collections.abc import Generator
-
+import os
+from dotenv import load_dotenv
 from sqlalchemy import create_engine
-from sqlalchemy.orm import Session, declarative_base, sessionmaker
+from sqlalchemy.orm import sessionmaker, declarative_base
 
-from app.core.config import settings
+load_dotenv()
 
+DATABASE_URL = os.getenv("DATABASE_URL")
 
-engine_kwargs = {"pool_pre_ping": True}
-if settings.DATABASE_URL.startswith("sqlite"):
-    engine_kwargs["connect_args"] = {"check_same_thread": False}
-
-engine = create_engine(settings.DATABASE_URL, **engine_kwargs)
-
+engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
 Base = declarative_base()
 
 
-def get_db() -> Generator[Session, None, None]:
-    """Yield a database session for request-scoped usage."""
+def get_db():
     db = SessionLocal()
     try:
         yield db

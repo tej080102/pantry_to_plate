@@ -29,8 +29,12 @@ The backend uses a relational schema optimized for food and recipe data:
 ### Core Entities
 
 - **Ingredient**
-  - Nutritional metadata (calories, protein, etc.)
+  - Canonical ingredient metadata
   - Shelf-life estimation for spoilage tracking
+
+- **IngredientNutrition**
+  - One-to-one nutrition facts linked to an ingredient
+  - Keeps nutrition normalized outside the ingredient record
 
 - **Recipe**
   - Structured instructions and metadata
@@ -49,6 +53,11 @@ This design supports:
 - Efficient recipe matching
 - Nutrition-based filtering
 - Expiry-aware ingredient prioritization
+
+SQL artifacts for PostgreSQL / Cloud SQL are available in:
+- `db/schema.sql`
+- `db/seed.sql`
+- `db/validation_queries.sql`
 
 ---
 
@@ -119,3 +128,13 @@ Notes:
 - Re-running the loader updates existing `ingredients` rows by name instead of creating duplicates.
 - The current transform is intentionally strict: it keeps only `foundation_food` rows with complete `calories`, `protein`, `carbs`, and `fat` values, then deduplicates by normalized ingredient name.
 - Because of that filtering, a full USDA Foundation Foods download can produce a much smaller clean output than the raw file size. In the current local run for this repository, the clean CSV contained 107 ingredient rows.
+
+```
+
+### 2. Configure environment
+The backend reads configuration from `backend/.env`.
+
+Default local configuration:
+```env
+DATABASE_URL=sqlite:///./pantry_to_plate.db
+```
