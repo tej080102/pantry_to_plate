@@ -15,7 +15,7 @@ from app.etl.load import load_ingredient_records
 from app.etl.tracking import ETLTracker
 from app.etl.transform import transform_usda_foundation
 from app.etl.types import NormalizedIngredientRecord
-from app.models import ETLRun, Ingredient
+from app.models import ETLRun, Ingredient, IngredientNutrition
 
 
 class ETLPipelineTestCase(unittest.TestCase):
@@ -108,7 +108,10 @@ class ETLPipelineTestCase(unittest.TestCase):
             self.assertEqual(len(ingredients), 1)
             self.assertEqual(ingredients[0].category, "Fresh Fruit")
             self.assertEqual(ingredients[0].standard_unit, "cup")
-            self.assertEqual(ingredients[0].calories_per_100g, 60.0)
+            self.assertIsNotNone(ingredients[0].nutrition)
+            self.assertEqual(ingredients[0].nutrition.calories_per_100g, 60.0)
+            self.assertEqual(ingredients[0].nutrition.protein_per_100g, 0.5)
+            self.assertEqual(session.query(IngredientNutrition).count(), 1)
 
     def test_loader_rolls_back_when_commit_fails(self) -> None:
         records = [

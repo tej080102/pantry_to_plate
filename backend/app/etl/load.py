@@ -5,7 +5,7 @@ from pathlib import Path
 
 from sqlalchemy.orm import sessionmaker
 
-from app.models import Ingredient
+from app.models import Ingredient, IngredientNutrition
 from app.etl.types import INGREDIENT_FIELDNAMES, LoadStats, NormalizedIngredientRecord
 
 
@@ -41,7 +41,7 @@ def load_ingredient_records(
             for record in records:
                 ingredient = existing_by_name.get(record.name)
                 if ingredient is None:
-                    ingredient = Ingredient(**record.as_csv_row())
+                    ingredient = _build_ingredient(record)
                     session.add(ingredient)
                     existing_by_name[record.name] = ingredient
                     inserted += 1
@@ -61,13 +61,44 @@ def load_ingredient_records(
 def _update_ingredient(ingredient: Ingredient, record: NormalizedIngredientRecord) -> None:
     ingredient.category = record.category
     ingredient.standard_unit = record.standard_unit
-    ingredient.calories_per_100g = record.calories_per_100g
-    ingredient.protein_per_100g = record.protein_per_100g
-    ingredient.carbs_per_100g = record.carbs_per_100g
-    ingredient.fat_per_100g = record.fat_per_100g
-    ingredient.fiber_per_100g = record.fiber_per_100g
     ingredient.estimated_shelf_life_days = record.estimated_shelf_life_days
     ingredient.storage_type = record.storage_type
+    _upsert_nutrition(ingredient, record)
+
+
+def _build_ingredient(record: NormalizedIngredientRecord) -> Ingredient:
+    ingredient = Ingredient(
+        name=record.name,
+        category=record.category,
+        standard_unit=record.standard_unit,
+        estimated_shelf_life_days=record.estimated_shelf_life_days,
+        storage_type=record.storage_type,
+    )
+    ingredient.nutrition = _build_nutrition(record)
+    return ingredient
+
+
+def _upsert_nutrition(ingredient: Ingredient, record: NormalizedIngredientRecord) -> None:
+    nutrition = ingredient.nutrition
+    if nutrition is None:
+        ingredient.nutrition = _build_nutrition(record)
+        return
+
+    nutrition.calories_per_100g = record.calories_per_100g
+    nutrition.protein_per_100g = record.protein_per_100g
+    nutrition.carbs_per_100g = record.carbs_per_100g
+    nutrition.fat_per_100g = record.fat_per_100g
+    nutrition.fiber_per_100g = record.fiber_per_100g
+
+
+def _build_nutrition(record: NormalizedIngredientRecord) -> IngredientNutrition:
+    return IngredientNutrition(
+        calories_per_100g=record.calories_per_100g,
+        protein_per_100g=record.protein_per_100g,
+        carbs_per_100g=record.carbs_per_100g,
+        fat_per_100g=record.fat_per_100g,
+        fiber_per_100g=record.fiber_per_100g,
+    )
 
 
 def _read_clean_csv(clean_csv_path: Path | str) -> list[NormalizedIngredientRecord]:

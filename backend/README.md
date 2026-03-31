@@ -129,9 +129,7 @@ Notes:
 - The current transform is intentionally strict: it keeps only `foundation_food` rows with complete `calories`, `protein`, `carbs`, and `fat` values, then deduplicates by normalized ingredient name.
 - Because of that filtering, a full USDA Foundation Foods download can produce a much smaller clean output than the raw file size. In the current local run for this repository, the clean CSV contained 107 ingredient rows.
 
-```
-
-### 2. Configure environment
+### 4. Configure environment
 The backend reads configuration from `backend/.env`.
 
 Default local configuration:

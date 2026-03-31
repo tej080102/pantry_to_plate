@@ -1,21 +1,15 @@
 from __future__ import annotations
 
 import app.models  # noqa: F401
-from sqlalchemy import create_engine
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import sessionmaker
 
-from app.core.database import Base
-from app.core.config import settings
+from app.core.database import Base, build_engine as build_app_engine
 
 
 def build_engine(database_url: str | None = None) -> Engine:
     """Create a SQLAlchemy engine suitable for the configured backend."""
-    resolved_database_url = database_url or settings.DATABASE_URL
-    engine_kwargs = {"pool_pre_ping": True}
-    if resolved_database_url.startswith("sqlite"):
-        engine_kwargs["connect_args"] = {"check_same_thread": False}
-    return create_engine(resolved_database_url, **engine_kwargs)
+    return build_app_engine(database_url)
 
 
 def build_session_factory(database_url: str | None = None) -> tuple[Engine, sessionmaker]:

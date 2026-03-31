@@ -1,3 +1,13 @@
-from database import test_connection
+from sqlalchemy import text
 
-test_connection()
+from app.core.database import engine
+
+
+def test_connection() -> None:
+    with engine.connect() as connection:
+        connection.execute(text("SELECT 1"))
+    print("Database connection ok")
+
+
+if __name__ == "__main__":
+    test_connection()
