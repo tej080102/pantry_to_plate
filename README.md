@@ -73,6 +73,8 @@ AI Layer
   - ETLRun
 - API endpoints:
   - `/ingredients`
+  - `/pantry`
+  - `/pantry/ingest`
   - `/recipes`
   - `/health`
 - Local SQLite setup (Postgres-ready for Cloud SQL)
@@ -124,6 +126,23 @@ Current ETL behavior:
 | AI Models    | Gemini / YOLO          |
 | Deployment   | GCP Cloud Run          |
 | CI/CD        | GitHub Actions         |
+
+---
+
+## Deployment Readiness
+
+The repository is structured for a GCP deployment target:
+- FastAPI backend intended for Cloud Run
+- PostgreSQL schema prepared for Cloud SQL
+- GCS planned for uploads and ETL artifact storage
+
+Current infrastructure-facing files:
+- [`backend/Dockerfile`](/Users/somyapathak/Desktop/Masters/spring%202026/BDA/pantry_to_plate/backend/Dockerfile)
+- [`backend/cloud_sql_setup.md`](/Users/somyapathak/Desktop/Masters/spring%202026/BDA/pantry_to_plate/backend/cloud_sql_setup.md)
+- [`backend/env_setup.md`](/Users/somyapathak/Desktop/Masters/spring%202026/BDA/pantry_to_plate/backend/env_setup.md)
+- [`infra/README.md`](/Users/somyapathak/Desktop/Masters/spring%202026/BDA/pantry_to_plate/infra/README.md)
+
+Cloud provisioning and deployment automation are still manual and not yet complete.
 
 ---
 

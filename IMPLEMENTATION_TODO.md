@@ -5,9 +5,11 @@ This document describes how to proceed from the current repository state to a pr
 Current repository status:
 - Backend foundation exists in `backend/app`
 - Core database models exist for ingredients, nutrition, recipes, pantry items, and ETL runs
-- Basic FastAPI routes exist for `/ingredients`, `/recipes`, and `/health`
+- Basic FastAPI routes exist for `/ingredients`, `/recipes`, `/pantry`, and `/health`
 - USDA ETL flow exists for local CSV transform and database load
-- Cloud infrastructure, perception, pantry prioritization, recipe inference, full testing, and deployment are not finished
+- Pantry state MVP exists with spoilage ranking and pantry retrieval
+- A basic backend Dockerfile and environment/infrastructure documentation now exist
+- Cloud infrastructure, pantry state validation hardening, recipe inference, full testing, and deployment are not finished
 
 Recommended execution order:
 1. Stabilize platform and environment setup
@@ -29,7 +31,7 @@ Do this before building the remaining product layers.
 - Prepare the repo for Cloud Run deployment
 
 ### Tasks
-- Add a `backend/.env.example` file with all required variables
+- Add documented backend environment configuration in `backend/.env`
 - Add a backend `Dockerfile`
 - Add dependency pinning in `backend/requirements.txt` or move to a lock-based workflow
 - Add database migration support
@@ -52,12 +54,18 @@ Do this before building the remaining product layers.
   - Vercel for Next.js and Cloud Run for API
   - fully on GCP
 
+Current status:
+- Documented backend environment setup now exists in `backend/env_setup.md`
+- A basic `backend/Dockerfile` now exists and is suitable for a simple Cloud Run container
+- `infra/README.md` now documents the intended GCP architecture
+- Dependency pinning, migrations, expanded settings, and deployment automation are still not done
+
 ### Suggested backend additions
 - `backend/app/core/settings.py` or expand `backend/app/core/config.py`
 - `backend/alembic.ini`
 - `backend/alembic/`
 - `backend/Dockerfile`
-- `backend/.env.example`
+- environment setup documentation for `backend/.env`
 
 ### Required environment variables
 - `ENVIRONMENT`
@@ -80,6 +88,13 @@ Do this before building the remaining product layers.
 - Staging and production config shape is defined
 - Docker image builds locally
 - Migrations exist for schema changes
+
+Current status:
+- Partially met
+- Local setup and environment shape are documented
+- A Dockerfile exists in the repo
+- Migrations do not exist yet
+- Cloud Run deployment automation is not implemented yet
 
 ---
 
@@ -192,8 +207,12 @@ ETL service account may need:
 - `infra/gcp_setup.md`
 - `cloudbuild.yaml`
 - `backend/Dockerfile`
-- `backend/.env.example`
+- environment setup documentation for `backend/.env`
 - deployment scripts or Terraform if using IaC
+
+Current repo coverage:
+- Present: `infra/README.md`, `backend/Dockerfile`, environment setup documentation
+- Missing: `infra/gcp_setup.md`, `cloudbuild.yaml`, deployment scripts, IaC
 
 ### Acceptance criteria
 - GCP project is created and configured
@@ -359,6 +378,12 @@ Suggested files:
 - `backend/app/services/pantry_state.py`
 - `backend/app/services/spoilage.py`
 
+Status in current repo:
+- Completed
+- `POST /pantry/ingest` persists matched detections as `PantryItem` rows
+- Optional manual corrections are supported as a simple detected-name to corrected-name mapping
+- Unmatched detections are returned so callers can review what was not persisted
+
 #### 3.2 Add shelf-life mapping logic
 - Use existing `Ingredient.estimated_shelf_life_days`
 - Fill missing shelf-life data for canonical ingredients
@@ -370,6 +395,12 @@ Suggested files:
 Recommended approach:
 - keep explicit per-ingredient shelf life when available
 - fall back to category defaults only when no explicit value exists
+
+Status in current repo:
+- Completed for MVP
+- Explicit per-ingredient shelf life is used first
+- Category defaults are used as a fallback
+- If no explicit or category shelf life exists, expiry remains unknown
 
 #### 3.3 Implement FIFO ranking
 - Use `date_added`
@@ -385,6 +416,12 @@ Example priority rule:
 - `LOW`: all others
 - `UNKNOWN`: missing shelf-life data
 
+Status in current repo:
+- Completed for MVP
+- Ranking is deterministic
+- Ordering is by earliest expiry, then earliest added date, then confidence/quantity tie-breakers
+- Unknown expiry dates are placed at the end
+
 #### 3.4 Expose pantry retrieval endpoint
 - Add route: `GET /pantry`
 - Filter by user
@@ -394,6 +431,10 @@ Example priority rule:
   - date added
   - estimated expiry
   - priority rank
+
+Status in current repo:
+- Completed
+- `GET /pantry?user_id=...` returns ranked pantry items with ingredient metadata, expiry, priority bucket, and rank
 
 #### 3.5 Add state mutation operations
 - Add support for:
@@ -405,11 +446,22 @@ Example priority rule:
 
 Without these controls, state quality will degrade quickly.
 
+Status in current repo:
+- Partially completed
+- `PATCH /pantry/{id}` updates quantity and unit
+- `DELETE /pantry/{id}` removes a pantry item
+- `POST /pantry/{id}/consume` reduces quantity and deletes the item when fully consumed
+- Still missing: explicit false-positive workflow, archive-expired operation, and a separate confirm-detection state transition
+
 ### Acceptance criteria
 - Ingredient list is stored as application state
 - Shelf-life data is mapped to ingredients
 - FIFO ranking logic is implemented
 - Priority ingredients are identified correctly
+
+Current status:
+- Met for Pantry State MVP
+- Remaining gaps are auditability, explicit false-positive/archive workflows, and deterministic tests
 
 ### Missing items you should include
 - user identity model or temporary session identity
@@ -629,6 +681,8 @@ These are not in your four feature bullets, but they are likely needed.
 - `POST /pantry/ingest`
 - `GET /pantry`
 - `PATCH /pantry/{id}`
+- `DELETE /pantry/{id}`
+- `POST /pantry/{id}/consume`
 - `POST /recipes/generate`
 - `GET /recipes/generated/{id}` if generation results are persisted
 
@@ -648,11 +702,16 @@ These are not in your four feature bullets, but they are likely needed.
 
 ### Milestone 1: Platform Ready
 - Dockerfile added
-- `.env.example` added
+- `.env` shape documented
 - GCP project and services created
 - Cloud SQL reachable
 - Cloud Run deploy works
 - Secret Manager wired
+
+Current status:
+- Partially complete
+- Dockerfile and environment documentation are present
+- GCP provisioning, Cloud SQL reachability validation, deployment, and Secret Manager wiring are still pending
 
 ### Milestone 2: Perception MVP
 - image upload works
@@ -665,6 +724,10 @@ These are not in your four feature bullets, but they are likely needed.
 - shelf-life mapped
 - FIFO ranking works
 - pantry API returns priority labels
+
+Current status:
+- Implemented in the backend
+- Still missing archive-expired flow, false-positive handling, and dedicated tests
 
 ### Milestone 4: Recipe MVP
 - ranked pantry accepted
@@ -684,11 +747,11 @@ These are not in your four feature bullets, but they are likely needed.
 
 If you want the most efficient next sequence from the current repo, do this:
 
-1. Add `.env.example`, Dockerfile, and Alembic migrations
+1. Add Dockerfile, environment setup documentation, and Alembic migrations
 2. Provision GCP project, Cloud SQL, GCS, Secret Manager, service accounts, and Cloud Run
 3. Add `POST /perception/detect` with storage + structured response schema
 4. Add normalized detection persistence tables
-5. Add `POST /pantry/ingest` and FIFO spoilage service
+5. Add the remaining pantry lifecycle actions: remove false positives, archive expired items, and explicit confirm-detection handling
 6. Add `POST /recipes/generate` with strict output schema
 7. Add integration tests for the full upload → pantry → recipe flow
 8. Add CI/CD and staging deployment

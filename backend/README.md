@@ -74,6 +74,13 @@ SQL artifacts for PostgreSQL / Cloud SQL are available in:
 - `GET /recipes` → List all recipes
 - `GET /recipes/{id}` → Get recipe with ingredients
 
+### Pantry
+- `POST /pantry/ingest` → Persist detected ingredients as pantry state
+- `GET /pantry` → List ranked pantry items for a user
+- `PATCH /pantry/{id}` → Update pantry quantity or unit
+- `DELETE /pantry/{id}` → Remove pantry item
+- `POST /pantry/{id}/consume` → Reduce pantry quantity or consume item fully
+
 ---
 
 ## Local Setup

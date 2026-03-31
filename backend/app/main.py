@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from sqlalchemy import text
 
 import app.models
-from app.api.routes import ingredients_router, recipes_router
+from app.api.routes import ingredients_router, pantry_router, recipes_router
 from app.core.config import settings
 from app.core.database import Base, engine
 
@@ -27,6 +27,7 @@ def test_db():
 
 # existing routers
 app.include_router(ingredients_router)
+app.include_router(pantry_router)
 app.include_router(recipes_router)
 
 
