@@ -47,6 +47,15 @@ class PantryItemRead(BaseModel):
     priority_rank: int
 
 
+class UnmatchedDetectedIngredientRead(BaseModel):
+    detected_name: str
+    quantity: float | None = None
+    unit: str | None = None
+    confidence: float | None = None
+    reason: str
+
+
 class PantryIngestResponse(BaseModel):
     items: list[PantryItemRead]
     unmatched_detections: list[str]
+    unmatched_detected_ingredients: list[UnmatchedDetectedIngredientRead]

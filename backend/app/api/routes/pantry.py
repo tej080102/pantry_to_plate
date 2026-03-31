@@ -15,8 +15,14 @@ def ingest_pantry(
     db: Session = Depends(get_db),
 ) -> PantryIngestResponse:
     """Persist confirmed ingredient detections as pantry state for one user."""
-    items, unmatched_detections = ingest_pantry_items(db, payload)
-    return PantryIngestResponse(items=items, unmatched_detections=unmatched_detections)
+    items, unmatched_detected_ingredients = ingest_pantry_items(db, payload)
+    return PantryIngestResponse(
+        items=items,
+        unmatched_detections=[
+            item.detected_name for item in unmatched_detected_ingredients
+        ],
+        unmatched_detected_ingredients=unmatched_detected_ingredients,
+    )
 
 
 @router.get("", response_model=list[PantryItemRead])

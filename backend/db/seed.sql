@@ -16,6 +16,24 @@ WHERE NOT EXISTS (
 );
 
 INSERT INTO ingredients (name, category, standard_unit, estimated_shelf_life_days, storage_type)
+SELECT 'Onion', 'Vegetable', 'g', 14, 'counter'
+WHERE NOT EXISTS (
+    SELECT 1 FROM ingredients WHERE name = 'Onion'
+);
+
+INSERT INTO ingredients (name, category, standard_unit, estimated_shelf_life_days, storage_type)
+SELECT 'Egg', 'Protein', 'count', 21, 'refrigerated'
+WHERE NOT EXISTS (
+    SELECT 1 FROM ingredients WHERE name = 'Egg'
+);
+
+INSERT INTO ingredients (name, category, standard_unit, estimated_shelf_life_days, storage_type)
+SELECT 'Cheese', 'Dairy', 'g', 21, 'refrigerated'
+WHERE NOT EXISTS (
+    SELECT 1 FROM ingredients WHERE name = 'Cheese'
+);
+
+INSERT INTO ingredients (name, category, standard_unit, estimated_shelf_life_days, storage_type)
 SELECT 'Olive Oil', 'Pantry', 'ml', 365, 'pantry'
 WHERE NOT EXISTS (
     SELECT 1 FROM ingredients WHERE name = 'Olive Oil'
@@ -45,6 +63,45 @@ INSERT INTO ingredient_nutrition (
 SELECT id, 18.0, 0.9, 3.9, 0.2, 1.2
 FROM ingredients
 WHERE name = 'Tomato'
+ON CONFLICT (ingredient_id) DO NOTHING;
+
+INSERT INTO ingredient_nutrition (
+    ingredient_id,
+    calories_per_100g,
+    protein_per_100g,
+    carbs_per_100g,
+    fat_per_100g,
+    fiber_per_100g
+)
+SELECT id, 40.0, 1.1, 9.3, 0.1, 1.7
+FROM ingredients
+WHERE name = 'Onion'
+ON CONFLICT (ingredient_id) DO NOTHING;
+
+INSERT INTO ingredient_nutrition (
+    ingredient_id,
+    calories_per_100g,
+    protein_per_100g,
+    carbs_per_100g,
+    fat_per_100g,
+    fiber_per_100g
+)
+SELECT id, 155.0, 13.0, 1.1, 11.0, 0.0
+FROM ingredients
+WHERE name = 'Egg'
+ON CONFLICT (ingredient_id) DO NOTHING;
+
+INSERT INTO ingredient_nutrition (
+    ingredient_id,
+    calories_per_100g,
+    protein_per_100g,
+    carbs_per_100g,
+    fat_per_100g,
+    fiber_per_100g
+)
+SELECT id, 402.0, 25.0, 1.3, 33.0, 0.0
+FROM ingredients
+WHERE name = 'Cheese'
 ON CONFLICT (ingredient_id) DO NOTHING;
 
 INSERT INTO ingredient_nutrition (

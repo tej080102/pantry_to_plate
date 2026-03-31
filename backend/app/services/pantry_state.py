@@ -10,6 +10,7 @@ from app.schemas.pantry import (
     ManualCorrectionInput,
     PantryIngestRequest,
     PantryItemRead,
+    UnmatchedDetectedIngredientRead,
 )
 from app.services.spoilage import (
     estimate_expiry_date,
@@ -125,18 +126,26 @@ def get_ranked_pantry_items(db: Session, user_id: str) -> list[PantryItemRead]:
 def ingest_pantry_items(
     db: Session,
     payload: PantryIngestRequest,
-) -> tuple[list[PantryItemRead], list[str]]:
+) -> tuple[list[PantryItemRead], list[UnmatchedDetectedIngredientRead]]:
     """Persist pantry items from confirmed detections and return the ranked pantry view."""
     correction_map = _build_correction_map(payload.manual_corrections)
     ingredient_by_name = _ingredient_lookup(db)
-    unmatched_detections: list[str] = []
+    unmatched_detections: list[UnmatchedDetectedIngredientRead] = []
     today = date.today()
 
     for detection in payload.detected_ingredients:
         canonical_name = _canonical_name_for_detection(detection, correction_map)
         ingredient = ingredient_by_name.get(_normalize_name(canonical_name))
         if ingredient is None:
-            unmatched_detections.append(detection.detected_name)
+            unmatched_detections.append(
+                UnmatchedDetectedIngredientRead(
+                    detected_name=detection.detected_name,
+                    quantity=detection.quantity,
+                    unit=detection.unit,
+                    confidence=detection.detected_confidence,
+                    reason="No canonical ingredient match found",
+                )
+            )
             continue
 
         item_date_added = detection.date_added or today

@@ -42,6 +42,20 @@ def seed_data() -> None:
                 fiber_per_100g=2.2,
             ),
         )
+        onion = Ingredient(
+            name="Onion",
+            category="Vegetable",
+            standard_unit="g",
+            estimated_shelf_life_days=14,
+            storage_type="counter",
+            nutrition=IngredientNutrition(
+                calories_per_100g=40.0,
+                protein_per_100g=1.1,
+                carbs_per_100g=9.3,
+                fat_per_100g=0.1,
+                fiber_per_100g=1.7,
+            ),
+        )
         tomato = Ingredient(
             name="Tomato",
             category="Vegetable",
@@ -54,6 +68,34 @@ def seed_data() -> None:
                 carbs_per_100g=3.9,
                 fat_per_100g=0.2,
                 fiber_per_100g=1.2,
+            ),
+        )
+        egg = Ingredient(
+            name="Egg",
+            category="Protein",
+            standard_unit="count",
+            estimated_shelf_life_days=21,
+            storage_type="refrigerated",
+            nutrition=IngredientNutrition(
+                calories_per_100g=155.0,
+                protein_per_100g=13.0,
+                carbs_per_100g=1.1,
+                fat_per_100g=11.0,
+                fiber_per_100g=0.0,
+            ),
+        )
+        cheese = Ingredient(
+            name="Cheese",
+            category="Dairy",
+            standard_unit="g",
+            estimated_shelf_life_days=21,
+            storage_type="refrigerated",
+            nutrition=IngredientNutrition(
+                calories_per_100g=402.0,
+                protein_per_100g=25.0,
+                carbs_per_100g=1.3,
+                fat_per_100g=33.0,
+                fiber_per_100g=0.0,
             ),
         )
         olive_oil = Ingredient(
@@ -105,6 +147,16 @@ def seed_data() -> None:
                 detected_confidence=0.94,
                 date_added=today,
                 estimated_expiry_date=today + timedelta(days=5),
+                is_priority=False,
+            ),
+            PantryItem(
+                user_id="demo-user",
+                ingredient=egg,
+                quantity=6,
+                unit="count",
+                detected_confidence=0.97,
+                date_added=today,
+                estimated_expiry_date=today + timedelta(days=10),
                 is_priority=False,
             ),
             PantryItem(
