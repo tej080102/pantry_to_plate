@@ -1,8 +1,8 @@
-# Sprout — System Architecture & Data Flow
+# Pantry to Plate — System Architecture & Data Flow
 
 ## 1. Executive Summary
 
-Sprout is an AI-powered recipe generation platform that reduces food waste by detecting ingredients from fridge photos, ranking them by spoilage urgency, and generating grounded recipes. The system is built on GCP infrastructure with a Next.js frontend, FastAPI backend, Cloud SQL database, GCS object storage, and an AI layer combining computer vision with LLM-based generation.
+Pantry to Plate is an AI-powered recipe generation platform that reduces food waste by detecting ingredients from fridge photos, ranking them by spoilage urgency, and generating grounded recipes. The system is built on GCP infrastructure with a Next.js frontend, FastAPI backend, Cloud SQL database, GCS object storage, and an AI layer combining computer vision with LLM-based generation.
 
 ---
 

@@ -80,13 +80,23 @@ AI Layer
 
 ---
 
-## Data Pipeline (Planned)
+## Data Pipeline (Current MVP)
 
-- Scrapy-based ingestion (Open Food Facts, USDA)
-- Data cleaning and normalization
-- Shelf-life scoring engine
-- GCS data lake + Cloud SQL loading
-- ETL run tracking for observability
+- USDA FoodData Central Foundation Foods CSV ingestion
+- Local raw → clean CSV → database ETL flow
+- Data cleaning and normalization for names, categories, units, and macro fields
+- Ingredient deduplication and ETL run tracking
+
+Dataset source:
+- USDA FoodData Central Downloadable Data: https://fdc.nal.usda.gov/download-datasets/
+- USDA Foundation Foods documentation: https://fdc.nal.usda.gov/Foundation_Foods_Documentation/
+
+Current ETL behavior:
+- Reads USDA Foundation Foods raw CSV files from `backend/data/raw/usda_foundation/`
+- Writes normalized ingredient CSV artifacts to `backend/data/clean/usda_foundation/`
+- Loads cleaned records into the `ingredients` table
+- Tracks execution status in the `etl_runs` table
+- Keeps only `foundation_food` rows with complete core macros (`calories`, `protein`, `carbs`, `fat`) and then deduplicates by normalized ingredient name, so the final clean row count is much smaller than the raw file row count
 
 ---
 
@@ -125,3 +135,4 @@ AI Layer
 cd backend
 pip install -r requirements.txt
 uvicorn app.main:app --reload
+```

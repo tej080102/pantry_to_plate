@@ -1,8 +1,8 @@
-# Sprout — Dataset Evaluation & Selection for ETL Ingestion
+# Pantry to Plate — Dataset Evaluation & Selection for ETL Ingestion
 
 ## 1. Overview
 
-This document evaluates publicly available food and nutrition datasets for ingestion into the Sprout ETL pipeline. The goal is to populate the Cloud SQL database with ingredient-level nutritional data, shelf-life data, and recipe content that supports FIFO spoilage ranking and grounded recipe generation.
+This document evaluates publicly available food and nutrition datasets for ingestion into the Pantry to Plate ETL pipeline. The goal is to populate the Cloud SQL database with ingredient-level nutritional data, shelf-life data, and recipe content that supports FIFO spoilage ranking and grounded recipe generation.
 
 **Evaluation criteria:**
 - Relevance of data fields to the `ingredients`, `recipes`, and `recipe_ingredients` tables
@@ -29,7 +29,7 @@ This document evaluates publicly available food and nutrition datasets for inges
 
 #### 2.1.1 Relevant Data Fields
 
-| Field | Column in OFF | Maps to Sprout Table |
+| Field | Column in OFF | Maps to Pantry to Plate Table |
 |---|---|---|
 | Product name | `product_name` | `ingredients.name` |
 | Generic name | `generic_name` | `ingredients.name` (fallback) |
@@ -86,7 +86,7 @@ This document evaluates publicly available food and nutrition datasets for inges
 
 #### 2.2.1 FoodData Central Data Types
 
-| Type | Description | Best For Sprout |
+| Type | Description | Best For Pantry to Plate |
 |---|---|---|
 | **Foundation Foods** | Curated raw foods with enhanced nutrient profiles and sampling metadata | ✅ Primary — clean raw ingredient data |
 | **SR Legacy** | Standard Reference (final 2018 release); 7,793 food items | ✅ Secondary — stable raw ingredient catalog |
@@ -96,7 +96,7 @@ This document evaluates publicly available food and nutrition datasets for inges
 
 #### 2.2.2 Relevant Data Fields
 
-| Field | FDC Field | Maps to Sprout Table |
+| Field | FDC Field | Maps to Pantry to Plate Table |
 |---|---|---|
 | Food name | `description` | `ingredients.name` |
 | Food category | `foodCategory.description` | `ingredients.category` |
@@ -183,7 +183,7 @@ This lookup is applied during the Transform stage (F2) to assign `estimated_shel
 | **API key required** | ❌ No | ✅ Yes (free) | N/A |
 | **License** | ODbL (open) | Public domain | N/A |
 | **Cleaning overhead** | 🔴 High | 🟢 Low | 🟢 Minimal |
-| **Best use in Sprout** | Supplementary ingredient enrichment | Primary nutritional catalog | Shelf-life scoring |
+| **Best use in Pantry to Plate** | Supplementary ingredient enrichment | Primary nutritional catalog | Shelf-life scoring |
 
 ---
 
