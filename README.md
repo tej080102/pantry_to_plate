@@ -73,6 +73,8 @@ AI Layer
   - ETLRun
 - API endpoints:
   - `/ingredients`
+  - `/pantry`
+  - `/pantry/ingest`
   - `/recipes`
   - `/health`
 - Local SQLite setup (Postgres-ready for Cloud SQL)

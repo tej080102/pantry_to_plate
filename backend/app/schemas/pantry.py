@@ -47,6 +47,20 @@ class PantryItemRead(BaseModel):
     priority_rank: int
 
 
+class PantryItemUpdate(BaseModel):
+    quantity: float | None = Field(default=None, ge=0)
+    unit: str | None = None
+
+
+class PantryConsumeRequest(BaseModel):
+    amount: float = Field(..., gt=0)
+
+
+class PantryConsumeResponse(BaseModel):
+    deleted: bool
+    item: PantryItemRead | None = None
+
+
 class UnmatchedDetectedIngredientRead(BaseModel):
     detected_name: str
     quantity: float | None = None

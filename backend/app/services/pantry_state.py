@@ -6,8 +6,11 @@ from sqlalchemy.orm import Session, joinedload
 
 from app.models import Ingredient, PantryItem
 from app.schemas.pantry import (
+    PantryConsumeResponse,
+    PantryConsumeRequest,
     DetectedIngredientInput,
     ManualCorrectionInput,
+    PantryItemUpdate,
     PantryIngestRequest,
     PantryItemRead,
     UnmatchedDetectedIngredientRead,
@@ -91,6 +94,15 @@ def _shape_pantry_item(item: PantryItem, priority_rank: int) -> PantryItemRead:
     )
 
 
+def _get_pantry_item(db: Session, pantry_item_id: int) -> PantryItem | None:
+    return (
+        db.query(PantryItem)
+        .options(joinedload(PantryItem.ingredient))
+        .filter(PantryItem.id == pantry_item_id)
+        .first()
+    )
+
+
 def _sync_priority_flags(db: Session, pantry_items: list[PantryItem]) -> None:
     has_changes = False
     for item in pantry_items:
@@ -121,6 +133,19 @@ def get_ranked_pantry_items(db: Session, user_id: str) -> list[PantryItemRead]:
         _shape_pantry_item(item, priority_rank=index)
         for index, item in enumerate(ranked_items, start=1)
     ]
+
+
+def get_ranked_pantry_item(db: Session, pantry_item_id: int) -> PantryItemRead | None:
+    """Return one pantry item together with its current rank for the owning user."""
+    pantry_item = _get_pantry_item(db, pantry_item_id)
+    if pantry_item is None:
+        return None
+
+    ranked_items = get_ranked_pantry_items(db, pantry_item.user_id)
+    for item in ranked_items:
+        if item.id == pantry_item_id:
+            return item
+    return None
 
 
 def ingest_pantry_items(
@@ -168,3 +193,63 @@ def ingest_pantry_items(
     db.commit()
     ranked_items = get_ranked_pantry_items(db, payload.user_id)
     return ranked_items, unmatched_detections
+
+
+def update_pantry_item(
+    db: Session,
+    pantry_item_id: int,
+    payload: PantryItemUpdate,
+) -> PantryItemRead | None:
+    """Update pantry quantity or unit while keeping ranking output consistent."""
+    pantry_item = _get_pantry_item(db, pantry_item_id)
+    if pantry_item is None:
+        return None
+
+    if payload.quantity is None and payload.unit is None:
+        raise ValueError("At least one of quantity or unit must be provided")
+
+    if payload.quantity is not None:
+        pantry_item.quantity = payload.quantity
+    if payload.unit is not None:
+        pantry_item.unit = payload.unit
+
+    db.commit()
+    return get_ranked_pantry_item(db, pantry_item_id)
+
+
+def delete_pantry_item(db: Session, pantry_item_id: int) -> bool:
+    """Delete one pantry item by id."""
+    pantry_item = _get_pantry_item(db, pantry_item_id)
+    if pantry_item is None:
+        return False
+
+    db.delete(pantry_item)
+    db.commit()
+    return True
+
+
+def consume_pantry_item(
+    db: Session,
+    pantry_item_id: int,
+    payload: PantryConsumeRequest,
+) -> PantryConsumeResponse | None:
+    """Reduce pantry quantity and delete the item when it is fully consumed."""
+    pantry_item = _get_pantry_item(db, pantry_item_id)
+    if pantry_item is None:
+        return None
+
+    if pantry_item.quantity is None:
+        raise ValueError("Cannot consume an item with unknown quantity")
+
+    remaining_quantity = pantry_item.quantity - payload.amount
+    if remaining_quantity <= 0:
+        db.delete(pantry_item)
+        db.commit()
+        return PantryConsumeResponse(deleted=True, item=None)
+
+    pantry_item.quantity = remaining_quantity
+    db.commit()
+    return PantryConsumeResponse(
+        deleted=False,
+        item=get_ranked_pantry_item(db, pantry_item_id),
+    )

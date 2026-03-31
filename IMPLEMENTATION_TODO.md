@@ -9,7 +9,7 @@ Current repository status:
 - USDA ETL flow exists for local CSV transform and database load
 - Pantry state MVP exists with spoilage ranking and pantry retrieval
 - A basic backend Dockerfile and environment/infrastructure documentation now exist
-- Cloud infrastructure, perception, pantry lifecycle actions, recipe inference, full testing, and deployment are not finished
+- Cloud infrastructure, pantry state validation hardening, recipe inference, full testing, and deployment are not finished
 
 Recommended execution order:
 1. Stabilize platform and environment setup
@@ -447,8 +447,11 @@ Status in current repo:
 Without these controls, state quality will degrade quickly.
 
 Status in current repo:
-- Not started
-- No patch/delete/archive operations yet
+- Partially completed
+- `PATCH /pantry/{id}` updates quantity and unit
+- `DELETE /pantry/{id}` removes a pantry item
+- `POST /pantry/{id}/consume` reduces quantity and deletes the item when fully consumed
+- Still missing: explicit false-positive workflow, archive-expired operation, and a separate confirm-detection state transition
 
 ### Acceptance criteria
 - Ingredient list is stored as application state
@@ -458,7 +461,7 @@ Status in current repo:
 
 Current status:
 - Met for Pantry State MVP
-- Remaining gaps are pantry lifecycle actions, auditability, and deterministic tests
+- Remaining gaps are auditability, explicit false-positive/archive workflows, and deterministic tests
 
 ### Missing items you should include
 - user identity model or temporary session identity
@@ -678,6 +681,8 @@ These are not in your four feature bullets, but they are likely needed.
 - `POST /pantry/ingest`
 - `GET /pantry`
 - `PATCH /pantry/{id}`
+- `DELETE /pantry/{id}`
+- `POST /pantry/{id}/consume`
 - `POST /recipes/generate`
 - `GET /recipes/generated/{id}` if generation results are persisted
 
@@ -722,7 +727,7 @@ Current status:
 
 Current status:
 - Implemented in the backend
-- Still missing pantry item edit/archive actions and dedicated tests
+- Still missing archive-expired flow, false-positive handling, and dedicated tests
 
 ### Milestone 4: Recipe MVP
 - ranked pantry accepted
@@ -746,7 +751,7 @@ If you want the most efficient next sequence from the current repo, do this:
 2. Provision GCP project, Cloud SQL, GCS, Secret Manager, service accounts, and Cloud Run
 3. Add `POST /perception/detect` with storage + structured response schema
 4. Add normalized detection persistence tables
-5. Add pantry lifecycle actions such as edit, consume, remove false positives, and archive expired items
+5. Add the remaining pantry lifecycle actions: remove false positives, archive expired items, and explicit confirm-detection handling
 6. Add `POST /recipes/generate` with strict output schema
 7. Add integration tests for the full upload → pantry → recipe flow
 8. Add CI/CD and staging deployment
