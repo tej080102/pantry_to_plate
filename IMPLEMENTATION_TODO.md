@@ -8,6 +8,7 @@ Current repository status:
 - Basic FastAPI routes exist for `/ingredients`, `/recipes`, `/pantry`, and `/health`
 - USDA ETL flow exists for local CSV transform and database load
 - Pantry state MVP exists with spoilage ranking and pantry retrieval
+- A basic backend Dockerfile and environment/infrastructure documentation now exist
 - Cloud infrastructure, perception, pantry lifecycle actions, recipe inference, full testing, and deployment are not finished
 
 Recommended execution order:
@@ -53,6 +54,12 @@ Do this before building the remaining product layers.
   - Vercel for Next.js and Cloud Run for API
   - fully on GCP
 
+Current status:
+- Documented backend environment setup now exists in `backend/env_setup.md`
+- A basic `backend/Dockerfile` now exists and is suitable for a simple Cloud Run container
+- `infra/README.md` now documents the intended GCP architecture
+- Dependency pinning, migrations, expanded settings, and deployment automation are still not done
+
 ### Suggested backend additions
 - `backend/app/core/settings.py` or expand `backend/app/core/config.py`
 - `backend/alembic.ini`
@@ -81,6 +88,13 @@ Do this before building the remaining product layers.
 - Staging and production config shape is defined
 - Docker image builds locally
 - Migrations exist for schema changes
+
+Current status:
+- Partially met
+- Local setup and environment shape are documented
+- A Dockerfile exists in the repo
+- Migrations do not exist yet
+- Cloud Run deployment automation is not implemented yet
 
 ---
 
@@ -195,6 +209,10 @@ ETL service account may need:
 - `backend/Dockerfile`
 - environment setup documentation for `backend/.env`
 - deployment scripts or Terraform if using IaC
+
+Current repo coverage:
+- Present: `infra/README.md`, `backend/Dockerfile`, environment setup documentation
+- Missing: `infra/gcp_setup.md`, `cloudbuild.yaml`, deployment scripts, IaC
 
 ### Acceptance criteria
 - GCP project is created and configured
@@ -684,6 +702,11 @@ These are not in your four feature bullets, but they are likely needed.
 - Cloud SQL reachable
 - Cloud Run deploy works
 - Secret Manager wired
+
+Current status:
+- Partially complete
+- Dockerfile and environment documentation are present
+- GCP provisioning, Cloud SQL reachability validation, deployment, and Secret Manager wiring are still pending
 
 ### Milestone 2: Perception MVP
 - image upload works
