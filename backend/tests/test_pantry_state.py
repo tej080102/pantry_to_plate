@@ -17,11 +17,14 @@ from app.core.database import Base
 from app.models import Ingredient, PantryItem
 from app.schemas.pantry import (
     DetectedIngredientInput,
+    ManualCorrectionInput,
+    PantryArchiveExpiredResponse,
     PantryConsumeRequest,
     PantryIngestRequest,
     PantryItemUpdate,
 )
 from app.services.pantry_state import (
+    archive_expired_pantry_items,
     consume_pantry_item,
     delete_pantry_item,
     get_ranked_pantry_items,
@@ -238,6 +241,137 @@ class PantryStateTestCase(unittest.TestCase):
             self.assertEqual(len(get_ranked_pantry_items(session, "demo-user")), 1)
             self.assertTrue(delete_pantry_item(session, pantry_item.id))
             self.assertEqual(len(get_ranked_pantry_items(session, "demo-user")), 0)
+
+    def test_archive_expired_items_excludes_them_from_active_pantry(self) -> None:
+        with self.session_factory() as session:
+            ingredient = Ingredient(
+                name="Tomato",
+                category="Vegetable",
+                standard_unit="g",
+                estimated_shelf_life_days=7,
+                storage_type="counter",
+            )
+            session.add(ingredient)
+            session.commit()
+
+            expired_item = PantryItem(
+                user_id="demo-user",
+                ingredient_id=ingredient.id,
+                quantity=2,
+                unit="count",
+                detected_confidence=0.9,
+                source_detected_name="tomato",
+                date_added=date.today() - timedelta(days=10),
+                estimated_expiry_date=date.today() - timedelta(days=1),
+                is_priority=True,
+            )
+            active_item = PantryItem(
+                user_id="demo-user",
+                ingredient_id=ingredient.id,
+                quantity=1,
+                unit="count",
+                detected_confidence=0.8,
+                source_detected_name="tomato",
+                date_added=date.today(),
+                estimated_expiry_date=date.today() + timedelta(days=3),
+                is_priority=True,
+            )
+            session.add_all([expired_item, active_item])
+            session.commit()
+
+            response = archive_expired_pantry_items(session, "demo-user")
+            self.assertIsInstance(response, PantryArchiveExpiredResponse)
+            self.assertEqual(response.archived_count, 1)
+            self.assertEqual(response.archived_item_ids, [expired_item.id])
+
+            active_items = get_ranked_pantry_items(session, "demo-user")
+            self.assertEqual(len(active_items), 1)
+            self.assertEqual(active_items[0].id, active_item.id)
+
+            all_items = get_ranked_pantry_items(session, "demo-user", include_inactive=True)
+            archived = next(item for item in all_items if item.id == expired_item.id)
+            self.assertTrue(archived.is_archived)
+            self.assertFalse(archived.is_priority)
+
+    def test_false_positive_dismissal_excludes_item_from_active_pantry(self) -> None:
+        with self.session_factory() as session:
+            ingredient = Ingredient(
+                name="Cheese",
+                category="Dairy",
+                standard_unit="g",
+                estimated_shelf_life_days=14,
+                storage_type="refrigerated",
+            )
+            session.add(ingredient)
+            session.commit()
+
+            pantry_item = PantryItem(
+                user_id="demo-user",
+                ingredient_id=ingredient.id,
+                quantity=150,
+                unit="g",
+                detected_confidence=0.72,
+                source_detected_name="shredded cheese",
+                date_added=date.today(),
+                estimated_expiry_date=date.today() + timedelta(days=5),
+                is_priority=True,
+            )
+            session.add(pantry_item)
+            session.commit()
+
+            updated = update_pantry_item(
+                session,
+                pantry_item.id,
+                PantryItemUpdate(is_false_positive=True),
+            )
+            self.assertIsNotNone(updated)
+            self.assertTrue(updated.is_false_positive)
+            self.assertFalse(updated.is_priority)
+
+            active_items = get_ranked_pantry_items(session, "demo-user")
+            self.assertEqual(len(active_items), 0)
+
+            all_items = get_ranked_pantry_items(session, "demo-user", include_inactive=True)
+            self.assertEqual(len(all_items), 1)
+            self.assertEqual(all_items[0].source_detected_name, "shredded cheese")
+            self.assertTrue(all_items[0].is_false_positive)
+
+    def test_traceability_field_is_persisted_on_ingest(self) -> None:
+        with self.session_factory() as session:
+            egg = Ingredient(
+                name="Egg",
+                category="Protein",
+                standard_unit="count",
+                estimated_shelf_life_days=21,
+                storage_type="refrigerated",
+            )
+            session.add(egg)
+            session.commit()
+
+            payload = PantryIngestRequest(
+                user_id="demo-user",
+                detected_ingredients=[
+                    DetectedIngredientInput(
+                        detected_name="brown egg",
+                        quantity=6,
+                        unit="count",
+                        detected_confidence=0.88,
+                    )
+                ],
+                manual_corrections=[
+                    ManualCorrectionInput(
+                        detected_name="brown egg",
+                        corrected_name="Egg",
+                    )
+                ],
+            )
+
+            items, unmatched = ingest_pantry_items(session, payload)
+
+            self.assertEqual(len(unmatched), 0)
+            self.assertEqual(len(items), 1)
+            self.assertEqual(items[0].ingredient.name, "Egg")
+            self.assertEqual(items[0].source_detected_name, "brown egg")
 
 
 if __name__ == "__main__":

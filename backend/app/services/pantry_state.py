@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from app.models import Ingredient, PantryItem
 from app.schemas.pantry import (
+    PantryArchiveExpiredResponse,
     PantryConsumeResponse,
     PantryConsumeRequest,
     DetectedIngredientInput,
@@ -86,9 +87,12 @@ def _shape_pantry_item(item: PantryItem, priority_rank: int) -> PantryItemRead:
         quantity=item.quantity,
         unit=item.unit,
         detected_confidence=item.detected_confidence,
+        source_detected_name=item.source_detected_name,
         date_added=item.date_added,
         estimated_expiry_date=item.estimated_expiry_date,
         is_priority=item.is_priority,
+        is_archived=item.is_archived,
+        is_false_positive=item.is_false_positive,
         priority_bucket=bucket,
         priority_rank=priority_rank,
     )
@@ -106,6 +110,13 @@ def _get_pantry_item(db: Session, pantry_item_id: int) -> PantryItem | None:
 def _sync_priority_flags(db: Session, pantry_items: list[PantryItem]) -> None:
     has_changes = False
     for item in pantry_items:
+        if item.is_archived or item.is_false_positive:
+            expected_priority = False
+            if item.is_priority != expected_priority:
+                item.is_priority = expected_priority
+                has_changes = True
+            continue
+
         bucket = priority_bucket(item.estimated_expiry_date)
         expected_priority = is_priority_bucket(bucket)
         if item.is_priority != expected_priority:
@@ -118,14 +129,24 @@ def _sync_priority_flags(db: Session, pantry_items: list[PantryItem]) -> None:
             db.refresh(item)
 
 
-def get_ranked_pantry_items(db: Session, user_id: str) -> list[PantryItemRead]:
+def get_ranked_pantry_items(
+    db: Session,
+    user_id: str,
+    include_inactive: bool = False,
+) -> list[PantryItemRead]:
     """Return one user's pantry ordered by expiry and FIFO tie-breakers."""
-    pantry_items = (
+    query = (
         db.query(PantryItem)
         .options(joinedload(PantryItem.ingredient))
         .filter(PantryItem.user_id == user_id)
-        .all()
     )
+    if not include_inactive:
+        query = query.filter(
+            PantryItem.is_archived.is_(False),
+            PantryItem.is_false_positive.is_(False),
+        )
+
+    pantry_items = query.all()
 
     _sync_priority_flags(db, pantry_items)
     ranked_items = rank_pantry_items(pantry_items)
@@ -141,7 +162,11 @@ def get_ranked_pantry_item(db: Session, pantry_item_id: int) -> PantryItemRead |
     if pantry_item is None:
         return None
 
-    ranked_items = get_ranked_pantry_items(db, pantry_item.user_id)
+    ranked_items = get_ranked_pantry_items(
+        db,
+        pantry_item.user_id,
+        include_inactive=True,
+    )
     for item in ranked_items:
         if item.id == pantry_item_id:
             return item
@@ -184,6 +209,7 @@ def ingest_pantry_items(
             quantity=detection.quantity,
             unit=detection.unit,
             detected_confidence=detection.detected_confidence,
+            source_detected_name=detection.detected_name.strip(),
             date_added=item_date_added,
             estimated_expiry_date=expiry_date,
             is_priority=is_priority_bucket(bucket),
@@ -205,13 +231,21 @@ def update_pantry_item(
     if pantry_item is None:
         return None
 
-    if payload.quantity is None and payload.unit is None:
-        raise ValueError("At least one of quantity or unit must be provided")
+    if (
+        payload.quantity is None
+        and payload.unit is None
+        and payload.is_false_positive is None
+    ):
+        raise ValueError("At least one updatable field must be provided")
 
     if payload.quantity is not None:
         pantry_item.quantity = payload.quantity
     if payload.unit is not None:
         pantry_item.unit = payload.unit
+    if payload.is_false_positive is not None:
+        pantry_item.is_false_positive = payload.is_false_positive
+        if payload.is_false_positive:
+            pantry_item.is_priority = False
 
     db.commit()
     return get_ranked_pantry_item(db, pantry_item_id)
@@ -252,4 +286,34 @@ def consume_pantry_item(
     return PantryConsumeResponse(
         deleted=False,
         item=get_ranked_pantry_item(db, pantry_item_id),
+    )
+
+
+def archive_expired_pantry_items(db: Session, user_id: str) -> PantryArchiveExpiredResponse:
+    """Archive expired pantry items so active pantry views stay focused on usable items."""
+    today = date.today()
+    pantry_items = (
+        db.query(PantryItem)
+        .filter(
+            PantryItem.user_id == user_id,
+            PantryItem.is_archived.is_(False),
+            PantryItem.is_false_positive.is_(False),
+            PantryItem.estimated_expiry_date.is_not(None),
+            PantryItem.estimated_expiry_date < today,
+        )
+        .all()
+    )
+
+    archived_item_ids: list[int] = []
+    for item in pantry_items:
+        item.is_archived = True
+        item.is_priority = False
+        archived_item_ids.append(item.id)
+
+    if archived_item_ids:
+        db.commit()
+
+    return PantryArchiveExpiredResponse(
+        archived_count=len(archived_item_ids),
+        archived_item_ids=archived_item_ids,
     )

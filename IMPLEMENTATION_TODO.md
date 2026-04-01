@@ -452,7 +452,10 @@ Status in current repo:
 - `PATCH /pantry/{id}` updates quantity and unit
 - `DELETE /pantry/{id}` removes a pantry item
 - `POST /pantry/{id}/consume` reduces quantity and deletes the item when fully consumed
-- Still missing: explicit false-positive workflow, archive-expired operation, and a separate confirm-detection state transition
+- `PATCH /pantry/{id}` also supports false-positive dismissal
+- `POST /pantry/archive-expired` archives expired pantry items so active views stay clean
+- A lightweight traceability field stores the original detected ingredient name on pantry records
+- Still missing: a separate confirm-detection state transition if the project later introduces a persisted detection-review layer
 
 ### Acceptance criteria
 - Ingredient list is stored as application state
@@ -462,14 +465,20 @@ Status in current repo:
 
 Current status:
 - Met for Pantry State MVP
-- Remaining gaps are auditability, explicit false-positive/archive workflows, and deterministic tests
+- Pantry/backend workstream is complete for BD-14 MVP
+- The only related future enhancement is a separate confirm-detection transition if a distinct detection state layer is added later
 
 ### Missing items you should include
 - user identity model or temporary session identity
-- pantry item lifecycle actions
+- separate confirm-detection workflow only if a persisted detection-review layer is introduced
 - fallback logic for unknown shelf life
 - deterministic ranking tests
-- auditability of detection-to-pantry mapping
+- stronger detection audit history if deeper analytics are needed
+
+Assumptions:
+- Archived and false-positive pantry items should be excluded from active pantry results by default
+- Lightweight traceability via the original detected ingredient name is sufficient for the current pantry/backend workstream
+- A separate confirm-detection endpoint is unnecessary until detection events are persisted independently from pantry items
 
 ---
 
@@ -734,7 +743,8 @@ Current status:
 
 Current status:
 - Implemented in the backend
-- Still missing archive-expired flow, false-positive handling, detection auditability, and dedicated tests
+- Implemented in the backend, including archive-expired flow, false-positive handling, and pantry tests
+- A separate confirm-detection transition remains intentionally deferred because there is no independent persisted detection state yet
 
 ### Milestone 4: Recipe MVP
 - ranked pantry accepted
@@ -770,12 +780,8 @@ If you want the most efficient next sequence from the current repo, do this:
 These are the next tasks that fit the currently implemented backend/pantry workstream without taking over perception or recipe-generation ownership.
 
 1. Add deterministic unit tests for pantry spoilage ranking and pantry state lifecycle behavior.
-2. Add the remaining pantry lifecycle operations that are still missing:
-   - false-positive handling
-   - archive-expired flow
-   - explicit confirm-detection workflow if needed separately from ingest
-3. Add lightweight pantry-state auditability such as a persisted detection-to-pantry mapping record or equivalent trace field.
-4. Expand backend config only where it directly supports the existing pantry/backend runtime and testing flow.
+2. If a future detection-review layer is added, introduce an explicit confirm-detection transition on top of it.
+3. Expand backend config only where it directly supports the existing pantry/backend runtime and testing flow.
 
 ## Not for Current Workstream
 
