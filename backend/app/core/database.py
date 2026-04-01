@@ -35,11 +35,11 @@ def ensure_pantry_item_schema_compatibility(target_engine: Engine) -> None:
         missing_columns.append("ALTER TABLE pantry_items ADD COLUMN source_detected_name VARCHAR(255)")
     if "is_archived" not in existing_columns:
         missing_columns.append(
-            "ALTER TABLE pantry_items ADD COLUMN is_archived BOOLEAN NOT NULL DEFAULT 0"
+            "ALTER TABLE pantry_items ADD COLUMN is_archived BOOLEAN NOT NULL DEFAULT FALSE"
         )
     if "is_false_positive" not in existing_columns:
         missing_columns.append(
-            "ALTER TABLE pantry_items ADD COLUMN is_false_positive BOOLEAN NOT NULL DEFAULT 0"
+            "ALTER TABLE pantry_items ADD COLUMN is_false_positive BOOLEAN NOT NULL DEFAULT FALSE"
         )
 
     if not missing_columns:

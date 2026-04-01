@@ -22,7 +22,7 @@ Instead of randomly generating recipes, Pantry to Plate ensures:
 ---
 
 ## System Architecture
-Frontend (Next.js)
+Frontend (React + Vite)
 ↓
 FastAPI Backend (Cloud Run)
 ↓
@@ -119,7 +119,7 @@ Current ETL behavior:
 
 | Layer        | Tech                   |
 |--------------|------------------------|
-| Frontend     | Next.js                |
+| Frontend     | React + Vite           |
 | Backend      | FastAPI                |
 | Database     | PostgreSQL (Cloud SQL) |
 | Storage      | GCS                    |
@@ -155,3 +155,43 @@ cd backend
 pip install -r requirements.txt
 uvicorn app.main:app --reload
 ```
+
+### Frontend
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Frontend environment:
+
+- `VITE_API_BASE_URL=http://localhost:8000`
+
+The current frontend integrates directly with these backend routes:
+- `/ingredients`
+- `/pantry`
+- `/pantry/ingest`
+- `/pantry/{id}`
+- `/pantry/{id}/consume`
+- `/pantry/archive-expired`
+- `/recipes`
+- `/recipes/{id}`
+
+The current frontend demo flow:
+- uploads an image and attempts `/perception/detect`
+- falls back to manual or sample detections if that backend route is unavailable
+- persists pantry state through `/pantry/ingest`
+- manages pantry items through update, consume, delete, dismiss, and archive actions
+- ranks recipe suggestions from the existing recipe catalog when `/recipes/generate` is not available
+
+The frontend does not require additional backend changes on this branch because:
+- CORS already allows local Vite origins
+- pantry lifecycle routes already exist
+- recipe catalog routes already exist
+
+What is still not implemented in the backend:
+- image perception upload/detection endpoint
+- recipe generation endpoint
+
+The UI handles those gaps explicitly and remains demo-safe.
