@@ -9,7 +9,8 @@ Current repository status:
 - USDA ETL flow exists for local CSV transform and database load
 - Pantry state MVP exists with spoilage ranking and pantry retrieval
 - A basic backend Dockerfile and environment/infrastructure documentation now exist
-- Cloud infrastructure, pantry state validation hardening, recipe inference, full testing, and deployment are not finished
+- Pantry/backend validation hardening is still in progress
+- Cloud infrastructure, perception, recipe inference, and deployment are not finished
 
 Recommended execution order:
 1. Stabilize platform and environment setup
@@ -619,6 +620,12 @@ You mentioned testing after the feature work. It should be planned in parallel, 
 - API schemas are validated
 - Perception and inference quality are measured, not assumed
 
+Current status for the current backend/pantry workstream:
+- Partially completed
+- ETL tests exist
+- Pantry/spoilage tests are still needed
+- Perception and recipe-generation test items are out of scope for the current coded area
+
 ---
 
 ## 6. Deployment and Operations
@@ -727,7 +734,7 @@ Current status:
 
 Current status:
 - Implemented in the backend
-- Still missing archive-expired flow, false-positive handling, and dedicated tests
+- Still missing archive-expired flow, false-positive handling, detection auditability, and dedicated tests
 
 ### Milestone 4: Recipe MVP
 - ranked pantry accepted
@@ -755,6 +762,31 @@ If you want the most efficient next sequence from the current repo, do this:
 6. Add `POST /recipes/generate` with strict output schema
 7. Add integration tests for the full upload → pantry → recipe flow
 8. Add CI/CD and staging deployment
+
+---
+
+## Recommended Next Tasks for Current Coded Part
+
+These are the next tasks that fit the currently implemented backend/pantry workstream without taking over perception or recipe-generation ownership.
+
+1. Add deterministic unit tests for pantry spoilage ranking and pantry state lifecycle behavior.
+2. Add the remaining pantry lifecycle operations that are still missing:
+   - false-positive handling
+   - archive-expired flow
+   - explicit confirm-detection workflow if needed separately from ingest
+3. Add lightweight pantry-state auditability such as a persisted detection-to-pantry mapping record or equivalent trace field.
+4. Expand backend config only where it directly supports the existing pantry/backend runtime and testing flow.
+
+## Not for Current Workstream
+
+These items are intentionally not part of the current backend/pantry-coded workstream and should stay with their natural feature owners unless coordination requires otherwise.
+
+- Perception pipeline implementation
+- Image upload and storage flow
+- Vision model integration
+- Recipe generation and ranking pipeline
+- LLM prompting and output validation for recipes
+- Broad GCP provisioning and deployment automation beyond documentation already added
 
 ---
 
