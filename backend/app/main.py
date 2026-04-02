@@ -3,7 +3,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 
 import app.models
-from app.api.routes import ingredients_router, pantry_router, recipes_router
+from app.api.routes import (
+    ingredients_router,
+    pantry_router,
+    perception_router,
+    recipes_router,
+)
 from app.core.config import settings
 from app.core.database import Base, engine, ensure_pantry_item_schema_compatibility
 
@@ -14,14 +19,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-        "http://localhost:4173",
-        "http://127.0.0.1:4173",
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-    ],
+    allow_origins=settings.CORS_ALLOW_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -45,6 +43,7 @@ def test_db():
 # existing routers
 app.include_router(ingredients_router)
 app.include_router(pantry_router)
+app.include_router(perception_router)
 app.include_router(recipes_router)
 
 

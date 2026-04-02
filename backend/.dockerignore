@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.env
+.venv/
+venv/
+pantry_to_plate.db
+test.db
+data/raw/
+data/clean/
+tests/__pycache__/

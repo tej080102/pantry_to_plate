@@ -2,10 +2,13 @@
 __pycache__/
 *.pyc
 
+
 # Env
 .env
 venv/
 .venv/
+.codex
+ptp/
 
 # Frontend
 frontend/node_modules/

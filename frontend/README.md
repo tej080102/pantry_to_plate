@@ -26,6 +26,7 @@ You can provide it in your shell before starting Vite, or through a local Vite e
 
 - `GET /health`
 - `GET /ingredients`
+- `POST /perception/detect`
 - `POST /pantry/ingest`
 - `GET /pantry`
 - `PATCH /pantry/{id}`
@@ -37,14 +38,15 @@ You can provide it in your shell before starting Vite, or through a local Vite e
 
 ## Fallback behavior
 
-Two product flows are not yet fully implemented in the backend on this branch:
+One product flow is not yet fully implemented in the backend on this branch:
 
-- image perception at `/perception/detect`
 - recipe generation at `/recipes/generate`
+
+The frontend also includes a resilience fallback for perception if the backend provider is unavailable or misconfigured.
 
 The frontend handles those gaps by:
 
-- falling back to manual or sample detections when image detection is unavailable
+- falling back to manual or sample detections when image detection fails
 - ranking recipe suggestions from the existing recipe catalog and current pantry state
 
 That keeps the demo usable without pretending those backend routes exist.
