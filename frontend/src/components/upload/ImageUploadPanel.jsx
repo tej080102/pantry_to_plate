@@ -1,0 +1,72 @@
+import { SectionCard } from "../common/SectionCard";
+import { InlineMessage } from "../common/InlineMessage";
+
+export function ImageUploadPanel({
+  file,
+  previewUrl,
+  isDetecting,
+  error,
+  fallbackMode,
+  onFileChange,
+  onDetect,
+  onLoadSample,
+}) {
+  return (
+    <SectionCard
+      title="1. Upload Pantry Photo"
+      subtitle="Upload a pantry or fridge image. If the perception API is not available on this branch, you can continue with sample or manual detections."
+      actions={
+        <button className="button button--secondary" onClick={onLoadSample} type="button">
+          Load Sample Detections
+        </button>
+      }
+    >
+      <div className="upload-panel">
+        <label className="upload-dropzone">
+          <input
+            accept="image/*"
+            className="sr-only"
+            onChange={onFileChange}
+            type="file"
+          />
+          <span className="upload-dropzone__title">
+            {file ? file.name : "Choose a pantry photo"}
+          </span>
+          <span className="upload-dropzone__subtitle">
+            JPG, PNG, or HEIC is fine for the demo.
+          </span>
+        </label>
+
+        {previewUrl ? (
+          <div className="preview-card">
+            <img alt="Selected pantry" className="preview-card__image" src={previewUrl} />
+          </div>
+        ) : (
+          <div className="preview-placeholder">
+            No image selected yet. Upload a photo or use sample detections to continue the demo.
+          </div>
+        )}
+      </div>
+
+      <div className="button-row">
+        <button
+          className="button"
+          disabled={!file || isDetecting}
+          onClick={onDetect}
+          type="button"
+        >
+          {isDetecting ? "Detecting..." : "Detect Ingredients"}
+        </button>
+      </div>
+
+      {fallbackMode ? (
+        <InlineMessage tone="warning">
+          The backend perception route is not available in this branch. Continue with manual review
+          below or use the sample detections button.
+        </InlineMessage>
+      ) : null}
+
+      {error ? <InlineMessage tone="error">{error}</InlineMessage> : null}
+    </SectionCard>
+  );
+}

@@ -1,14 +1,27 @@
+# Python
 __pycache__/
 *.pyc
+
+# Env
 .env
 venv/
 .venv/
-ptp/
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+
+# Data (ignore large/generated data)
 backend/data/raw/*
 backend/data/raw/usda_foundation/*
 backend/data/clean/*
 backend/data/clean/usda_foundation/*
+
+# Keep folder structure
 !backend/data/raw/.gitkeep
 !backend/data/raw/usda_foundation/.gitkeep
 !backend/data/clean/.gitkeep
 !backend/data/clean/usda_foundation/.gitkeep
+
+# OS / misc
+.DS_Store
