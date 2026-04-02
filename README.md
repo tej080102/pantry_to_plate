@@ -1,4 +1,4 @@
-# Pantry to Plate: AI-Powered Recipe Developer
+# Pantry to Plate: AI-Powered Recipe Developer 
 
 Turn your fridge into intelligent meals. Reduce food waste. Optimize nutrition.
 
@@ -7,11 +7,9 @@ Turn your fridge into intelligent meals. Reduce food waste. Optimize nutrition.
 ## Overview
 
 Pantry to Plate is an AI-powered full-stack application that helps users generate recipes from available ingredients while prioritizing items that are close to spoiling.
-
 Users upload a photo of their fridge → the system detects ingredients → ranks them based on spoilage → and generates structured recipes using a database-first + LLM hybrid approach.
 
 ---
-
 ## Core Idea
 
 Instead of randomly generating recipes, Pantry to Plate ensures:
@@ -33,7 +31,6 @@ GCS (Image + Data Lake Storage)
 AI Layer
 ├── Computer Vision (YOLO / Gemini Vision)
 └── LLM (Gemini / Llama)
-
 
 ---
 
