@@ -40,9 +40,12 @@ class PantryItemRead(BaseModel):
     quantity: float | None = None
     unit: str | None = None
     detected_confidence: float | None = None
+    source_detected_name: str | None = None
     date_added: date | None = None
     estimated_expiry_date: date | None = None
     is_priority: bool
+    is_archived: bool
+    is_false_positive: bool
     priority_bucket: str
     priority_rank: int
 
@@ -50,6 +53,7 @@ class PantryItemRead(BaseModel):
 class PantryItemUpdate(BaseModel):
     quantity: float | None = Field(default=None, ge=0)
     unit: str | None = None
+    is_false_positive: bool | None = None
 
 
 class PantryConsumeRequest(BaseModel):
@@ -59,6 +63,11 @@ class PantryConsumeRequest(BaseModel):
 class PantryConsumeResponse(BaseModel):
     deleted: bool
     item: PantryItemRead | None = None
+
+
+class PantryArchiveExpiredResponse(BaseModel):
+    archived_count: int
+    archived_item_ids: list[int]
 
 
 class UnmatchedDetectedIngredientRead(BaseModel):

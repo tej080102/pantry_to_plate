@@ -42,9 +42,12 @@ class PantryItem(Base):
     quantity: Mapped[float | None] = mapped_column(Float, nullable=True)
     unit: Mapped[str | None] = mapped_column(String(50), nullable=True)
     detected_confidence: Mapped[float | None] = mapped_column(Float, nullable=True)
+    source_detected_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     date_added: Mapped[date | None] = mapped_column(Date, nullable=True)
     estimated_expiry_date: Mapped[date | None] = mapped_column(Date, nullable=True, index=True)
     is_priority: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    is_archived: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, index=True)
+    is_false_positive: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, index=True)
     created_at: Mapped[DateTime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),

@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.schemas.pantry import (
+    PantryArchiveExpiredResponse,
     PantryConsumeRequest,
     PantryConsumeResponse,
     PantryIngestRequest,
@@ -11,6 +12,7 @@ from app.schemas.pantry import (
     PantryItemUpdate,
 )
 from app.services.pantry_state import (
+    archive_expired_pantry_items,
     consume_pantry_item,
     delete_pantry_item,
     get_ranked_pantry_items,
@@ -41,10 +43,11 @@ def ingest_pantry(
 @router.get("", response_model=list[PantryItemRead])
 def list_pantry(
     user_id: str = Query(..., min_length=1),
+    include_inactive: bool = Query(False),
     db: Session = Depends(get_db),
 ) -> list[PantryItemRead]:
     """Return one user's pantry ordered by spoilage urgency and FIFO rules."""
-    return get_ranked_pantry_items(db, user_id)
+    return get_ranked_pantry_items(db, user_id, include_inactive=include_inactive)
 
 
 @router.patch("/{pantry_item_id}", response_model=PantryItemRead)
@@ -106,3 +109,12 @@ def consume_pantry(
             detail="Pantry item not found",
         )
     return result
+
+
+@router.post("/archive-expired", response_model=PantryArchiveExpiredResponse)
+def archive_expired_pantry(
+    user_id: str = Query(..., min_length=1),
+    db: Session = Depends(get_db),
+) -> PantryArchiveExpiredResponse:
+    """Archive expired pantry items for one user."""
+    return archive_expired_pantry_items(db, user_id)

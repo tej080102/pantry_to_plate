@@ -4,7 +4,7 @@ from sqlalchemy import text
 import app.models
 from app.api.routes import ingredients_router, pantry_router, recipes_router
 from app.core.config import settings
-from app.core.database import Base, engine
+from app.core.database import Base, engine, ensure_pantry_item_schema_compatibility
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -15,6 +15,7 @@ app = FastAPI(
 def create_tables() -> None:
     """Create tables locally until migrations are added."""
     Base.metadata.create_all(bind=engine)
+    ensure_pantry_item_schema_compatibility(engine)
 
 
 #(Cloud SQL check)

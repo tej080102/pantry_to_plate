@@ -9,7 +9,8 @@ Current repository status:
 - USDA ETL flow exists for local CSV transform and database load
 - Pantry state MVP exists with spoilage ranking and pantry retrieval
 - A basic backend Dockerfile and environment/infrastructure documentation now exist
-- Cloud infrastructure, pantry state validation hardening, recipe inference, full testing, and deployment are not finished
+- Pantry/backend validation hardening is still in progress
+- Cloud infrastructure, perception, recipe inference, and deployment are not finished
 
 Recommended execution order:
 1. Stabilize platform and environment setup
@@ -451,7 +452,10 @@ Status in current repo:
 - `PATCH /pantry/{id}` updates quantity and unit
 - `DELETE /pantry/{id}` removes a pantry item
 - `POST /pantry/{id}/consume` reduces quantity and deletes the item when fully consumed
-- Still missing: explicit false-positive workflow, archive-expired operation, and a separate confirm-detection state transition
+- `PATCH /pantry/{id}` also supports false-positive dismissal
+- `POST /pantry/archive-expired` archives expired pantry items so active views stay clean
+- A lightweight traceability field stores the original detected ingredient name on pantry records
+- Still missing: a separate confirm-detection state transition if the project later introduces a persisted detection-review layer
 
 ### Acceptance criteria
 - Ingredient list is stored as application state
@@ -461,14 +465,20 @@ Status in current repo:
 
 Current status:
 - Met for Pantry State MVP
-- Remaining gaps are auditability, explicit false-positive/archive workflows, and deterministic tests
+- Pantry/backend workstream is complete for BD-14 MVP
+- The only related future enhancement is a separate confirm-detection transition if a distinct detection state layer is added later
 
 ### Missing items you should include
 - user identity model or temporary session identity
-- pantry item lifecycle actions
+- separate confirm-detection workflow only if a persisted detection-review layer is introduced
 - fallback logic for unknown shelf life
 - deterministic ranking tests
-- auditability of detection-to-pantry mapping
+- stronger detection audit history if deeper analytics are needed
+
+Assumptions:
+- Archived and false-positive pantry items should be excluded from active pantry results by default
+- Lightweight traceability via the original detected ingredient name is sufficient for the current pantry/backend workstream
+- A separate confirm-detection endpoint is unnecessary until detection events are persisted independently from pantry items
 
 ---
 
@@ -619,6 +629,12 @@ You mentioned testing after the feature work. It should be planned in parallel, 
 - API schemas are validated
 - Perception and inference quality are measured, not assumed
 
+Current status for the current backend/pantry workstream:
+- Partially completed
+- ETL tests exist
+- Pantry/spoilage tests are still needed
+- Perception and recipe-generation test items are out of scope for the current coded area
+
 ---
 
 ## 6. Deployment and Operations
@@ -727,7 +743,8 @@ Current status:
 
 Current status:
 - Implemented in the backend
-- Still missing archive-expired flow, false-positive handling, and dedicated tests
+- Implemented in the backend, including archive-expired flow, false-positive handling, and pantry tests
+- A separate confirm-detection transition remains intentionally deferred because there is no independent persisted detection state yet
 
 ### Milestone 4: Recipe MVP
 - ranked pantry accepted
@@ -755,6 +772,27 @@ If you want the most efficient next sequence from the current repo, do this:
 6. Add `POST /recipes/generate` with strict output schema
 7. Add integration tests for the full upload → pantry → recipe flow
 8. Add CI/CD and staging deployment
+
+---
+
+## Recommended Next Tasks for Current Coded Part
+
+These are the next tasks that fit the currently implemented backend/pantry workstream without taking over perception or recipe-generation ownership.
+
+1. Add deterministic unit tests for pantry spoilage ranking and pantry state lifecycle behavior.
+2. If a future detection-review layer is added, introduce an explicit confirm-detection transition on top of it.
+3. Expand backend config only where it directly supports the existing pantry/backend runtime and testing flow.
+
+## Not for Current Workstream
+
+These items are intentionally not part of the current backend/pantry-coded workstream and should stay with their natural feature owners unless coordination requires otherwise.
+
+- Perception pipeline implementation
+- Image upload and storage flow
+- Vision model integration
+- Recipe generation and ranking pipeline
+- LLM prompting and output validation for recipes
+- Broad GCP provisioning and deployment automation beyond documentation already added
 
 ---
 
