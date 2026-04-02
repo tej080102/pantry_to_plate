@@ -146,6 +146,7 @@ Current infrastructure-facing files:
 - `backend/cloud_sql_setup.md`
 - `backend/env_setup.md`
 - `infra/README.md`
+- `infra/GCP_DEPLOYMENT_GUIDE.md`
 
 Cloud provisioning and deployment automation are still manual and not yet complete.
 

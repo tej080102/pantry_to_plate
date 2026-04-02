@@ -23,6 +23,7 @@ Pantry to Plate is designed for a simple GCP architecture:
 - Backend container hygiene is improved with [`backend/.dockerignore`](../backend/.dockerignore)
 - Environment setup guidance exists at [`backend/env_setup.md`](../backend/env_setup.md)
 - Gemini on Vertex AI is wired in the backend perception service
+- Beginner-friendly deployment steps now live in [`infra/GCP_DEPLOYMENT_GUIDE.md`](./GCP_DEPLOYMENT_GUIDE.md)
 
 ## Still manual / not automated yet
 
