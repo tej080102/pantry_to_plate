@@ -3,7 +3,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 
 import app.models
-from app.api.routes import ingredients_router, pantry_router, recipes_router
+from app.api.routes import (
+    ingredients_router,
+    pantry_router,
+    perception_router,
+    recipes_router,
+)
 from app.core.config import settings
 from app.core.database import Base, engine, ensure_pantry_item_schema_compatibility
 
@@ -45,6 +50,7 @@ def test_db():
 # existing routers
 app.include_router(ingredients_router)
 app.include_router(pantry_router)
+app.include_router(perception_router)
 app.include_router(recipes_router)
 
 

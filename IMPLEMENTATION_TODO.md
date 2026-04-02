@@ -5,20 +5,19 @@ This document describes how to proceed from the current repository state to a pr
 Current repository status:
 - Backend foundation exists in `backend/app`
 - Core database models exist for ingredients, nutrition, recipes, pantry items, and ETL runs
-- Basic FastAPI routes exist for `/ingredients`, `/recipes`, `/pantry`, and `/health`
+- Basic FastAPI routes exist for `/ingredients`, `/recipes`, `/pantry`, `/perception`, and `/health`
 - USDA ETL flow exists for local CSV transform and database load
+- Perception MVP exists for uploaded image validation and structured ingredient detection
 - Pantry state MVP exists with spoilage ranking and pantry retrieval
 - A basic backend Dockerfile and environment/infrastructure documentation now exist
 - Pantry/backend validation hardening is still in progress
-- Cloud infrastructure, perception, recipe inference, and deployment are not finished
+- Cloud infrastructure, recipe inference, and deployment are not finished
 
 Recommended execution order:
 1. Stabilize platform and environment setup
-2. Add image upload and perception pipeline
-3. Add pantry state and FIFO spoilage prioritization
-4. Add structured recipe inference pipeline
-5. Add integration tests and evaluation
-6. Add deployment automation and production operations
+2. Add structured recipe inference pipeline
+3. Add integration tests and evaluation
+4. Add deployment automation and production operations
 
 ---
 
@@ -233,7 +232,7 @@ Current repo coverage:
 
 ## 2. Perception Layer: Ingredient Detection From Images
 
-This corresponds to your second remaining task.
+This workstream is now implemented for the local MVP branch.
 
 ### Objective
 Accept uploaded images, store them safely, run ingredient detection, and return a structured result usable by the next layer.
@@ -274,6 +273,12 @@ Suggested files:
 - `backend/app/services/perception.py`
 - `backend/app/schemas/perception.py`
 
+Status in current repo:
+- Completed for MVP
+- `POST /perception/detect` accepts multipart uploads
+- Upload validation covers MIME type, file extension, empty payloads, and file size
+- The current implementation runs a local color-signature detector and returns structured detections for downstream pantry ingest
+
 #### 2.2 Add structured detection schema
 - Create response models such as:
   - `DetectedIngredient`
@@ -299,6 +304,11 @@ Optional fields:
 - `unit_hint`
 - `source_model`
 
+Status in current repo:
+- Completed for MVP
+- Response models now include image metadata plus structured ingredient detections
+- Each detection returns `raw_label`, `normalized_name`, `confidence`, `quantity_hint`, `unit_hint`, and `source_model`
+
 #### 2.3 Normalize detections for downstream use
 - Map raw labels to canonical ingredient names
 - Reuse existing ingredient records where possible
@@ -312,6 +322,11 @@ This normalization logic should live outside the route handler.
 Suggested module:
 - `backend/app/services/ingredient_normalizer.py`
 
+Status in current repo:
+- Partially completed
+- The current detector returns canonical ingredient names for a small built-in pantry vocabulary
+- Broader alias handling and catalog-driven normalization are still future improvements
+
 #### 2.4 Persist perception events
 - Add a table for uploaded images and detection results
 - Recommended new tables:
@@ -320,6 +335,10 @@ Suggested module:
 
 This gives traceability and helps debugging model quality later.
 
+Status in current repo:
+- Not started
+- Detection results are returned synchronously but are not yet stored in dedicated perception tables
+
 #### 2.5 Handle failure modes
 - corrupted image
 - unsupported format
@@ -327,11 +346,21 @@ This gives traceability and helps debugging model quality later.
 - low-confidence detections
 - provider timeout or API failure
 
+Status in current repo:
+- Partially completed
+- Corrupted image payloads, unsupported formats, empty uploads, and oversize uploads are handled
+- No-detection responses are supported as an empty `ingredients` list
+- Provider timeout handling is not relevant yet because the current MVP detector is local
+
 ### Acceptance criteria
 - Image input is processed successfully
 - Ingredients are detected and returned as structured output
 - Confidence scores are included
 - Output is usable by downstream components
+
+Current status:
+- Met for Perception MVP
+- The frontend can now call `/perception/detect` and receive structured detections usable by the pantry ingest flow
 
 ### Missing items you should include
 - manual review/edit step for low-confidence detections
@@ -344,7 +373,7 @@ This gives traceability and helps debugging model quality later.
 
 ## 3. Application State Layer: Pantry State and FIFO Spoilage Prioritization
 
-This corresponds to your third remaining task.
+This workstream is already complete for the current pantry MVP.
 
 ### Objective
 Store the detected ingredient list as application state, map shelf-life data, and rank ingredients by urgency so the recipe layer can prioritize them.
@@ -484,7 +513,7 @@ Assumptions:
 
 ## 4. Inference Layer: Recipe Generation Based on Prioritized Ingredients
 
-This corresponds to your fourth remaining task.
+This is now the main remaining product workstream.
 
 ### Objective
 Generate recipes from the ranked pantry list using a structured and reliable flow rather than unconstrained free-text generation.
