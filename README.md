@@ -31,8 +31,8 @@ Cloud SQL (PostgreSQL)
 GCS (Image + Data Lake Storage)
 ↓
 AI Layer
-├── Computer Vision (YOLO / Gemini Vision)
-└── LLM (Gemini / Llama)
+├── Computer Vision (Gemini on Vertex AI)
+└── LLM (Recipe generation planned)
 
 
 ---
@@ -75,6 +75,7 @@ AI Layer
   - `/ingredients`
   - `/pantry`
   - `/pantry/ingest`
+  - `/perception/detect`
   - `/recipes`
   - `/health`
 - Local SQLite setup (Postgres-ready for Cloud SQL)
@@ -102,14 +103,16 @@ Current ETL behavior:
 
 ---
 
-## AI Components (Planned)
+## AI Components
 
-### Computer Vision
-- YOLOv8 or Gemini Vision
-- Ingredient detection from fridge images
+### Computer Vision (Current)
+- `POST /perception/detect` accepts image uploads
+- Primary provider: Gemini on Vertex AI
+- Local fallback provider: heuristic color-signature detector for dev/test use
+- Structured ingredient output includes confidence scores, quantity hints, and unit hints
 
-### LLM Layer
-- Gemini Pro or Llama 3
+### Recipe Generation (Planned)
+- Gemini on Vertex AI or another structured LLM path
 - Structured JSON recipe generation
 - Grounded in database results
 
@@ -123,9 +126,9 @@ Current ETL behavior:
 | Backend      | FastAPI                |
 | Database     | PostgreSQL (Cloud SQL) |
 | Storage      | GCS                    |
-| AI Models    | Gemini / YOLO          |
+| AI Models    | Gemini on Vertex AI    |
 | Deployment   | GCP Cloud Run          |
-| CI/CD        | GitHub Actions         |
+| CI/CD        | Cloud Build (planned)  |
 
 ---
 
@@ -135,12 +138,14 @@ The repository is structured for a GCP deployment target:
 - FastAPI backend intended for Cloud Run
 - PostgreSQL schema prepared for Cloud SQL
 - GCS planned for uploads and ETL artifact storage
+- Vertex AI Gemini is wired as the primary perception provider
 
 Current infrastructure-facing files:
-- [`backend/Dockerfile`](/Users/somyapathak/Desktop/Masters/spring%202026/BDA/pantry_to_plate/backend/Dockerfile)
-- [`backend/cloud_sql_setup.md`](/Users/somyapathak/Desktop/Masters/spring%202026/BDA/pantry_to_plate/backend/cloud_sql_setup.md)
-- [`backend/env_setup.md`](/Users/somyapathak/Desktop/Masters/spring%202026/BDA/pantry_to_plate/backend/env_setup.md)
-- [`infra/README.md`](/Users/somyapathak/Desktop/Masters/spring%202026/BDA/pantry_to_plate/infra/README.md)
+- `backend/Dockerfile`
+- `backend/.dockerignore`
+- `backend/cloud_sql_setup.md`
+- `backend/env_setup.md`
+- `infra/README.md`
 
 Cloud provisioning and deployment automation are still manual and not yet complete.
 
@@ -172,6 +177,7 @@ The current frontend integrates directly with these backend routes:
 - `/ingredients`
 - `/pantry`
 - `/pantry/ingest`
+- `/perception/detect`
 - `/pantry/{id}`
 - `/pantry/{id}/consume`
 - `/pantry/archive-expired`
@@ -179,19 +185,20 @@ The current frontend integrates directly with these backend routes:
 - `/recipes/{id}`
 
 The current frontend demo flow:
-- uploads an image and attempts `/perception/detect`
-- falls back to manual or sample detections if that backend route is unavailable
+- uploads an image and calls `/perception/detect`
+- falls back to manual or sample detections if the perception provider is unavailable or misconfigured
 - persists pantry state through `/pantry/ingest`
 - manages pantry items through update, consume, delete, dismiss, and archive actions
 - ranks recipe suggestions from the existing recipe catalog when `/recipes/generate` is not available
 
 The frontend does not require additional backend changes on this branch because:
-- CORS already allows local Vite origins
+- CORS already allows local Vite origins and can be configured for hosted origins through env vars
 - pantry lifecycle routes already exist
 - recipe catalog routes already exist
 
 What is still not implemented in the backend:
-- image perception upload/detection endpoint
 - recipe generation endpoint
+- GCS-backed image persistence
+- production schema migrations
 
 The UI handles those gaps explicitly and remains demo-safe.

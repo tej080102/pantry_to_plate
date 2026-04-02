@@ -4,6 +4,7 @@ import sys
 import unittest
 from io import BytesIO
 from pathlib import Path
+from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -12,6 +13,10 @@ from fastapi.testclient import TestClient
 from PIL import Image
 
 from app.api.routes.perception import router as perception_router
+from app.core.config import settings
+from app.schemas.perception import DetectedIngredientRead
+from app.services import perception as perception_service
+from app.services.perception import PerceptionProviderError
 
 
 class PerceptionApiTestCase(unittest.TestCase):
@@ -24,10 +29,11 @@ class PerceptionApiTestCase(unittest.TestCase):
     def test_detect_returns_structured_output_with_confidence_scores(self) -> None:
         image_bytes = self._make_split_image()
 
-        response = self.client.post(
-            "/perception/detect",
-            files={"file": ("pantry.png", image_bytes, "image/png")},
-        )
+        with mock.patch.object(settings, "VISION_PROVIDER", "local_heuristic"):
+            response = self.client.post(
+                "/perception/detect",
+                files={"file": ("pantry.png", image_bytes, "image/png")},
+            )
 
         self.assertEqual(response.status_code, 200)
         payload = response.json()
@@ -47,10 +53,11 @@ class PerceptionApiTestCase(unittest.TestCase):
     def test_detect_can_identify_a_red_tomato_like_image(self) -> None:
         image_bytes = self._make_solid_image((205, 52, 42))
 
-        response = self.client.post(
-            "/perception/detect",
-            files={"file": ("tomato.png", image_bytes, "image/png")},
-        )
+        with mock.patch.object(settings, "VISION_PROVIDER", "local_heuristic"):
+            response = self.client.post(
+                "/perception/detect",
+                files={"file": ("tomato.png", image_bytes, "image/png")},
+            )
 
         self.assertEqual(response.status_code, 200)
         payload = response.json()
@@ -61,13 +68,66 @@ class PerceptionApiTestCase(unittest.TestCase):
         self.assertEqual(top_hit["unit_hint"], "count")
 
     def test_detect_rejects_non_image_uploads(self) -> None:
-        response = self.client.post(
-            "/perception/detect",
-            files={"file": ("notes.txt", b"not-an-image", "text/plain")},
-        )
+        with mock.patch.object(settings, "VISION_PROVIDER", "local_heuristic"):
+            response = self.client.post(
+                "/perception/detect",
+                files={"file": ("notes.txt", b"not-an-image", "text/plain")},
+            )
 
         self.assertEqual(response.status_code, 400)
         self.assertIn("Unsupported image content type", response.json()["detail"])
+
+    def test_detect_uses_gemini_vertex_when_configured(self) -> None:
+        image_bytes = self._make_solid_image((205, 52, 42))
+        gemini_detection = DetectedIngredientRead(
+            raw_label="tomato",
+            normalized_name="Tomato",
+            confidence=0.93,
+            quantity_hint=3,
+            unit_hint="count",
+            source_model="gemini-2.5-flash",
+        )
+
+        with (
+            mock.patch.object(settings, "VISION_PROVIDER", "gemini_vertex"),
+            mock.patch.object(settings, "GCP_PROJECT_ID", "demo-project"),
+            mock.patch.object(
+                perception_service,
+                "_detect_with_gemini_vertex",
+                return_value=[gemini_detection],
+            ) as mocked_provider,
+        ):
+            response = self.client.post(
+                "/perception/detect",
+                files={"file": ("tomato.png", image_bytes, "image/png")},
+            )
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["ingredients"][0]["normalized_name"], "Tomato")
+        self.assertEqual(payload["ingredients"][0]["source_model"], "gemini-2.5-flash")
+        mocked_provider.assert_called_once()
+
+    def test_detect_returns_503_when_gemini_provider_fails_without_fallback(self) -> None:
+        image_bytes = self._make_solid_image((205, 52, 42))
+
+        with (
+            mock.patch.object(settings, "VISION_PROVIDER", "gemini_vertex"),
+            mock.patch.object(settings, "GCP_PROJECT_ID", "demo-project"),
+            mock.patch.object(settings, "PERCEPTION_ALLOW_LOCAL_FALLBACK", False),
+            mock.patch.object(
+                perception_service,
+                "_detect_with_gemini_vertex",
+                side_effect=PerceptionProviderError("Vertex AI Gemini request failed"),
+            ),
+        ):
+            response = self.client.post(
+                "/perception/detect",
+                files={"file": ("tomato.png", image_bytes, "image/png")},
+            )
+
+        self.assertEqual(response.status_code, 503)
+        self.assertIn("Vertex AI Gemini request failed", response.json()["detail"])
 
     def _make_solid_image(self, color: tuple[int, int, int]) -> bytes:
         image = Image.new("RGB", (96, 96), color=color)

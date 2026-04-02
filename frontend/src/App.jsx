@@ -469,12 +469,12 @@ export default function App() {
               <li>`/ingredients` is used for canonical ingredient suggestions.</li>
               <li>`/pantry/*` powers ingest, retrieval, update, consume, dismiss, and archive flows.</li>
               <li>/recipes and /recipes/{'{'}id{'}'} are used to simulate recipe generation from the live catalog.</li>
-              <li>`/perception/detect` is attempted first; if unavailable, the UI falls back to manual/sample detections.</li>
+              <li>`/perception/detect` is attempted first; if Gemini detection fails, the UI falls back to manual/sample detections.</li>
             </ul>
 
             <InlineMessage tone="info">
-              The frontend stays usable even when perception or recipe-generation APIs are not yet
-              implemented on the backend.
+              The frontend stays usable even when perception is temporarily unavailable or the
+              recipe-generation API is not yet implemented.
             </InlineMessage>
           </SectionCard>
         </aside>

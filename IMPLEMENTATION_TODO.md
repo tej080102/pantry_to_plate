@@ -17,7 +17,7 @@ Pantry to Plate already has a working local MVP:
 Current completion estimate:
 
 - Application MVP: 65-75% complete
-- Production GCP readiness: 20-30% complete
+- Production GCP readiness: 25-35% complete
 
 The main remaining work is not basic app scaffolding. It is production hardening:
 
@@ -72,11 +72,14 @@ Implemented in `backend/app/api/routes/perception.py` and `backend/app/services/
 - file size and type validation
 - image decoding with Pillow
 - structured ingredient detection output with confidence scores
+- Gemini on Vertex AI integration through the `google-genai` SDK
+- environment-driven perception provider selection
+- local heuristic fallback for dev/test or Gemini outages
 
 Current limitation:
 
-- this is a local heuristic detector based on image color signatures
-- it is not yet a Gemini, YOLO, or other production vision integration
+- uploaded images are still processed in-memory rather than persisted to GCS
+- production behavior still depends on correct ADC, service account, and Vertex AI setup
 
 ### Recipes
 
@@ -117,22 +120,14 @@ Implemented in `frontend/src`:
 Present in the repository:
 
 - backend container definition in `backend/Dockerfile`
+- backend container hygiene in `backend/.dockerignore`
 - environment setup notes in `backend/env_setup.md`
 - Cloud SQL guidance in `backend/cloud_sql_setup.md`
 - infrastructure overview in `infra/README.md`
 
 ## Known Gaps and Deployment Blockers
 
-### 1. README and doc drift
-
-Some docs no longer match the codebase:
-
-- `README.md` and `frontend/README.md` still describe `/perception/detect` as missing
-- the route already exists and is wired in the backend
-
-This needs to be corrected to avoid planning and deployment mistakes.
-
-### 2. Schema drift between SQL and ORM
+### 1. Schema drift between SQL and ORM
 
 This is the highest-risk backend blocker for Cloud SQL deployment.
 
@@ -149,7 +144,7 @@ Impact:
 - a manual Cloud SQL bootstrap from `backend/db/schema.sql` will create the wrong schema
 - the running app will then disagree with the deployed database shape
 
-### 3. No migration system
+### 2. No migration system
 
 The app still relies on local bootstrap logic in `backend/app/main.py`:
 
@@ -164,42 +159,26 @@ Required fix:
 - make migrations the source of truth for schema changes
 - stop depending on `create_all()` for deployed environments
 
-### 4. Config is not production-ready
+### 3. Config is partially production-ready
 
-`backend/app/core/config.py` currently wires only:
-
-- `PROJECT_NAME`
-- `DATABASE_URL`
-
-Documented GCP-related settings are not yet loaded into runtime config, including:
+`backend/app/core/config.py` now wires:
 
 - environment name
+- project name
+- database URL
 - CORS origins
 - GCP project and region
-- GCS bucket names
-- vision provider/model
-- recipe model
+- Vertex AI Gemini provider/model settings
+- perception fallback behavior
 - logging level
 
-### 5. CORS is localhost-only
+Still missing:
 
-`backend/app/main.py` currently allows local Vite and localhost origins only.
+- first-class storage settings usage in application code
+- a fuller settings split for local, test, staging, and production
+- secret loading strategy beyond env injection
 
-Impact:
-
-- the current backend is not ready for a hosted frontend origin
-- production deployment needs environment-driven CORS configuration
-
-### 6. Container hygiene is incomplete
-
-The backend container exists, but there is no `.dockerignore`.
-
-Current risk:
-
-- `backend/Dockerfile` copies the full backend context into the image
-- local database files in `backend/` can be included in image builds unintentionally
-
-### 7. No CI/CD or IaC
+### 4. No CI/CD or IaC
 
 Missing from the repo today:
 
@@ -208,7 +187,7 @@ Missing from the repo today:
 - Terraform or other infrastructure-as-code
 - deployment scripts for repeatable environment setup
 
-### 8. GCS storage is planned, not implemented
+### 5. GCS storage is planned, not implemented
 
 The intended architecture uses GCS for:
 
@@ -222,7 +201,7 @@ Current state:
 - image uploads are processed in memory
 - no real GCS integration exists yet
 
-### 9. Recipe generation is still missing
+### 6. Recipe generation is still missing
 
 The top-level product vision expects a DB-first plus LLM recipe flow.
 
@@ -240,6 +219,7 @@ Unless requirements change, the default production target should be:
 - backend: Cloud Run
 - database: Cloud SQL for PostgreSQL
 - object storage: Google Cloud Storage
+- perception: Gemini on Vertex AI
 - secrets: Secret Manager
 - container registry: Artifact Registry
 - deployment pipeline: Cloud Build
@@ -259,9 +239,7 @@ Tasks:
 - reconcile ORM models with SQL bootstrap artifacts
 - make migrations authoritative for schema changes
 - update `backend/db/schema.sql` or retire it in favor of migrations
-- expand `backend/app/core/config.py` into real environment-aware settings
-- add production-safe CORS configuration
-- add `.dockerignore`
+- finish storage settings wiring for GCS-backed paths
 - pin Python dependencies more explicitly
 - define separate local, test, staging, and production config behavior
 
@@ -287,6 +265,7 @@ Tasks:
   - Artifact Registry API
   - Secret Manager API
   - Cloud Storage API
+  - Vertex AI API
   - IAM API
   - Service Usage API
   - Logging API
@@ -297,6 +276,7 @@ Tasks:
 - define lifecycle policies for buckets
 - create runtime and deploy service accounts
 - assign least-privilege IAM roles
+- ensure the runtime account can call Vertex AI Gemini
 - define separate staging and production environments
 
 Acceptance criteria:
@@ -318,6 +298,7 @@ Tasks:
 - attach the Cloud SQL connection
 - inject non-secret config as environment variables
 - inject secrets from Secret Manager
+- verify Vertex AI Gemini access from the Cloud Run service account
 - configure request timeout, CPU, memory, concurrency, and min instances
 - define health-check and smoke-check expectations
 
@@ -369,8 +350,8 @@ Acceptance criteria:
 
 Tasks:
 
-- decide whether to keep the current local heuristic as demo-only
-- choose Gemini Vision, YOLO, or a hybrid approach
+- keep Gemini on Vertex AI as the primary provider
+- keep the current local heuristic as dev/test fallback only
 - optionally store uploads in GCS before or after inference
 - preserve the current editable confirmation flow before pantry ingest
 
@@ -422,11 +403,13 @@ These should be supported explicitly by application config.
 - `CORS_ALLOW_ORIGINS`
 - `GCP_PROJECT_ID`
 - `GCP_REGION`
+- `GOOGLE_GENAI_USE_VERTEXAI`
 - `GCS_UPLOAD_BUCKET`
 - `GCS_RAW_BUCKET`
 - `GCS_CLEAN_BUCKET`
 - `VISION_PROVIDER`
 - `VISION_MODEL`
+- `PERCEPTION_ALLOW_LOCAL_FALLBACK`
 - `RECIPE_MODEL`
 - `LOG_LEVEL`
 
@@ -451,6 +434,7 @@ Before calling the system production-ready, verify all of the following:
 - frontend production build succeeds
 - migrations apply cleanly to PostgreSQL
 - Cloud SQL schema matches the current ORM and API expectations
+- Vertex AI Gemini responds successfully from the configured runtime
 - Cloud Run backend responds correctly to:
   - `GET /health`
   - `GET /ingredients`
@@ -469,6 +453,9 @@ What is genuinely done:
 - local ETL pipeline
 - demo-safe frontend
 - partial deployment preparation docs
+- Gemini on Vertex AI perception integration
+- environment-driven CORS and perception config
+- backend `.dockerignore`
 
 What is not done yet:
 
@@ -476,7 +463,6 @@ What is not done yet:
 - production GCP provisioning
 - deployment automation
 - GCS integration
-- production-ready vision integration
 - recipe generation API
 
 The project is beyond the scaffold stage, but not yet ready for a reliable GCP production launch.

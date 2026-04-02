@@ -14,7 +14,7 @@ export function ImageUploadPanel({
   return (
     <SectionCard
       title="1. Upload Pantry Photo"
-      subtitle="Upload a pantry or fridge image. If the perception API is not available on this branch, you can continue with sample or manual detections."
+      subtitle="Upload a pantry or fridge image. If Gemini detection is unavailable, you can continue with sample or manual detections."
       actions={
         <button className="button button--secondary" onClick={onLoadSample} type="button">
           Load Sample Detections
@@ -61,8 +61,8 @@ export function ImageUploadPanel({
 
       {fallbackMode ? (
         <InlineMessage tone="warning">
-          The backend perception route is not available in this branch. Continue with manual review
-          below or use the sample detections button.
+          The backend perception step is unavailable right now. Continue with manual review below
+          or use the sample detections button.
         </InlineMessage>
       ) : null}
 

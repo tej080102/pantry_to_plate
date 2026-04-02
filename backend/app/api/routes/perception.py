@@ -1,7 +1,10 @@
 from fastapi import APIRouter, File, HTTPException, UploadFile, status
 
 from app.schemas.perception import PerceptionResultRead
-from app.services.perception import detect_ingredients_from_upload
+from app.services.perception import (
+    PerceptionProviderError,
+    detect_ingredients_from_upload,
+)
 
 
 router = APIRouter(prefix="/perception", tags=["perception"])
@@ -20,5 +23,10 @@ async def detect_ingredients(file: UploadFile = File(...)) -> PerceptionResultRe
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
+    except PerceptionProviderError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail=str(exc),
         ) from exc

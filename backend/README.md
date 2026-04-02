@@ -8,7 +8,8 @@ This backend is designed to support:
 - Ingredient ingestion and normalization
 - Pantry state tracking with spoilage awareness
 - Recipe storage and retrieval
-- Future integration with computer vision and LLM-based generation
+- Gemini on Vertex AI image perception
+- Future LLM-based recipe generation
 
 ---
 
@@ -18,7 +19,8 @@ This backend is designed to support:
 - **Database**: SQLite (local dev), designed for PostgreSQL (Cloud SQL)
 - **ORM**: SQLAlchemy
 - **API Layer**: RESTful endpoints with Pydantic schemas
-- **Deployment Target**: Google Cloud Run (future)
+- **Perception Provider**: Gemini on Vertex AI with local fallback
+- **Deployment Target**: Google Cloud Run
 
 ---
 
@@ -73,6 +75,9 @@ SQL artifacts for PostgreSQL / Cloud SQL are available in:
 ### Recipes
 - `GET /recipes` → List all recipes
 - `GET /recipes/{id}` → Get recipe with ingredients
+
+### Perception
+- `POST /perception/detect` → Detect ingredients from one uploaded image
 
 ### Pantry
 - `POST /pantry/ingest` → Persist detected ingredients as pantry state
@@ -141,5 +146,33 @@ The backend reads configuration from `backend/.env`.
 
 Default local configuration:
 ```env
+ENVIRONMENT=local
+PROJECT_NAME=Pantry to Plate
 DATABASE_URL=sqlite:///./pantry_to_plate.db
+VISION_PROVIDER=local_heuristic
+VISION_MODEL=gemini-2.5-flash
+PERCEPTION_ALLOW_LOCAL_FALLBACK=true
+LOG_LEVEL=INFO
 ```
+
+Vertex AI Gemini configuration for local development or deployed environments:
+
+```env
+ENVIRONMENT=production
+PROJECT_NAME=Pantry to Plate
+DATABASE_URL=postgresql+psycopg2://DB_USER:DB_PASSWORD@127.0.0.1:5432/pantry_to_plate
+GCP_PROJECT_ID=your-gcp-project
+GCP_REGION=us-central1
+GOOGLE_GENAI_USE_VERTEXAI=true
+VISION_PROVIDER=gemini_vertex
+VISION_MODEL=gemini-2.5-flash
+PERCEPTION_ALLOW_LOCAL_FALLBACK=false
+CORS_ALLOW_ORIGINS=https://your-frontend.web.app
+LOG_LEVEL=INFO
+```
+
+Authentication notes:
+
+- Local development with Gemini on Vertex AI should use Application Default Credentials.
+- Cloud Run should use its attached service account with Vertex AI access.
+- If Gemini is unavailable and `PERCEPTION_ALLOW_LOCAL_FALLBACK=true`, the backend falls back to the local heuristic detector.
