@@ -157,6 +157,9 @@ Cloud provisioning and deployment automation are still manual and not yet comple
 cd backend
 pip install -r requirements.txt
 uvicorn app.main:app --reload
+
+### Run command to Run in conda environment
+python -m uvicorn app.main:app --reload
 ```
 
 ### Frontend
