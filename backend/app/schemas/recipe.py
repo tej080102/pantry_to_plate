@@ -51,3 +51,27 @@ class RecipeGenerateRequest(BaseModel):
     servings: int = Field(default=2, ge=1, le=12)
 
 
+class GeneratedRecipeIngredient(BaseModel):
+    name: str
+    # Human-readable quantity string e.g. "2 cups", "100 g", "3"
+    quantity: str | None = None
+    is_priority: bool = False
+    available_in_pantry: bool = False
+
+
+class GeneratedRecipe(BaseModel):
+    title: str
+    description: str
+    servings: int
+    estimated_cook_time_minutes: int
+    ingredients: list[GeneratedRecipeIngredient]
+    steps: list[str]
+    priority_ingredients_used: list[str]
+    # Fraction of recipe ingredients covered by the supplied pantry list
+    pantry_coverage_percent: float
+
+
+class RecipeGenerateResponse(BaseModel):
+    recipes: list[GeneratedRecipe]
+    priority_ingredients: list[str]
+    generation_method: str
