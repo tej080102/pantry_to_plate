@@ -174,3 +174,69 @@ def _sort_by_priority(ingredients: list[IngredientInput]) -> list[IngredientInpu
     )
 
 
+# ---------------------------------------------------------------------------
+# Step 2 — DB-first candidate matching
+# ---------------------------------------------------------------------------
+
+
+def _find_candidate_recipes(
+    db: Session,
+    all_names: list[str],
+    priority_names: list[str],
+) -> list[tuple[Recipe, float]]:
+    """
+    Score every recipe in the catalog by pantry overlap.
+
+    Score = (priority_matches × 2 + regular_matches) / total_recipe_ingredients
+
+    Returns up to 5 recipes ordered by score descending.
+    """
+    if not all_names:
+        return []
+
+    lower_all = {n.lower() for n in all_names}
+    lower_priority = {n.lower() for n in priority_names}
+
+    recipes = (
+        db.query(Recipe)
+        .options(
+            joinedload(Recipe.recipe_ingredients).joinedload(RecipeIngredient.ingredient)
+        )
+        .all()
+    )
+
+    scored: list[tuple[Recipe, float]] = []
+    for recipe in recipes:
+        ri_names = [
+            ri.ingredient.name.lower()
+            for ri in recipe.recipe_ingredients
+            if ri.ingredient is not None
+        ]
+        if not ri_names:
+            continue
+
+        priority_matches = sum(
+            1
+            for name in ri_names
+            if any(_fuzzy_match(name, p) for p in lower_priority)
+        )
+        regular_matches = sum(
+            1
+            for name in ri_names
+            if any(_fuzzy_match(name, a) for a in lower_all)
+        )
+
+        if regular_matches == 0:
+            continue
+
+        score = (priority_matches * 2 + regular_matches) / len(ri_names)
+        scored.append((recipe, score))
+
+    scored.sort(key=lambda x: x[1], reverse=True)
+    return scored[:5]
+
+
+def _fuzzy_match(recipe_name: str, pantry_name: str) -> bool:
+    """True when either string is a substring of the other."""
+    return recipe_name in pantry_name or pantry_name in recipe_name
+
