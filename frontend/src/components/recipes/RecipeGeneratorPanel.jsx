@@ -1,16 +1,23 @@
+import { useState } from "react";
+
 import { SectionCard } from "../common/SectionCard";
-import { InlineMessage } from "../common/InlineMessage";
 import { StatusBadge } from "../common/StatusBadge";
 
 function RecipeCard({ item }) {
+  const [isOpen, setIsOpen] = useState(false);
   const matched = item.ingredients.filter((ingredient) => ingredient.available_in_pantry);
   const missing = item.ingredients.filter((ingredient) => !ingredient.available_in_pantry);
   const urgentMatches = matched.filter((ingredient) => ingredient.is_priority);
+  const priorityLabel = urgentMatches.length ? "HIGH" : missing.length ? "MEDIUM" : "LOW";
 
   return (
-    <article className="recipe-card">
-      <div className="recipe-card__header">
-        <div>
+    <article className="recipe-accordion">
+      <button
+        className="recipe-accordion__summary"
+        onClick={() => setIsOpen((current) => !current)}
+        type="button"
+      >
+        <div className="recipe-accordion__titleblock">
           <h3>{item.title}</h3>
           <p>
             {item.pantry_coverage_percent}% pantry coverage
@@ -20,66 +27,73 @@ function RecipeCard({ item }) {
             {item.servings ? ` • ${item.servings} servings` : ""}
           </p>
         </div>
-        <div className="badge-row">
-          <StatusBadge label={urgentMatches.length ? "HIGH" : missing.length ? "MEDIUM" : "LOW"} />
+        <div className="recipe-accordion__meta">
+          <StatusBadge label={priorityLabel} />
+          <span className="recipe-accordion__toggle">
+            {isOpen ? "Hide details" : "View details"}
+          </span>
         </div>
-      </div>
+      </button>
 
-      <div className="recipe-summary-grid">
-        <div>
-          <strong>Matched pantry items</strong>
-          <ul>
-            {matched.length ? (
-              matched.map((ingredient) => (
-                <li key={ingredient.name}>
-                  {ingredient.name}
-                  {ingredient.is_priority ? " (priority)" : ""}
-                </li>
-              ))
-            ) : (
-              <li>No pantry overlap found</li>
-            )}
-          </ul>
+      {isOpen ? (
+        <div className="recipe-accordion__content">
+          <div className="recipe-summary-grid">
+            <div>
+              <strong>Matched pantry items</strong>
+              <ul>
+                {matched.length ? (
+                  matched.map((ingredient) => (
+                    <li key={ingredient.name}>
+                      {ingredient.name}
+                      {ingredient.is_priority ? " (priority)" : ""}
+                    </li>
+                  ))
+                ) : (
+                  <li>No pantry overlap found</li>
+                )}
+              </ul>
+            </div>
+
+            <div>
+              <strong>Missing ingredients</strong>
+              <ul>
+                {missing.length ? missing.map((ingredient) => <li key={ingredient.name}>{ingredient.name}</li>) : <li>None</li>}
+              </ul>
+            </div>
+          </div>
+
+          <p className="helper-text">{item.description}</p>
+
+          <div className="recipe-details">
+            <div>
+              <strong>Ingredient list</strong>
+              <ul>
+                {item.ingredients.map((ingredient) => (
+                  <li key={ingredient.name}>
+                    {ingredient.quantity ? `${ingredient.quantity} ` : ""}
+                    {ingredient.name}
+                    {ingredient.available_in_pantry ? " (in pantry)" : ""}
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <div>
+              <strong>Instructions</strong>
+              <ol className="recipe-steps">
+                {item.steps.map((step) => (
+                  <li key={step}>{step}</li>
+                ))}
+              </ol>
+            </div>
+          </div>
+
+          {item.priority_ingredients_used?.length ? (
+            <p className="helper-text">
+              Priority ingredients used: {item.priority_ingredients_used.join(", ")}
+            </p>
+          ) : null}
         </div>
-
-        <div>
-          <strong>Missing ingredients</strong>
-          <ul>
-            {missing.length ? missing.map((ingredient) => <li key={ingredient.name}>{ingredient.name}</li>) : <li>None</li>}
-          </ul>
-        </div>
-      </div>
-
-      <p className="helper-text">{item.description}</p>
-
-      <div className="recipe-details">
-        <div>
-          <strong>Ingredient list</strong>
-          <ul>
-            {item.ingredients.map((ingredient) => (
-              <li key={ingredient.name}>
-                {ingredient.quantity ? `${ingredient.quantity} ` : ""}
-                {ingredient.name}
-                {ingredient.available_in_pantry ? " (in pantry)" : ""}
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        <div>
-          <strong>Instructions</strong>
-          <ol className="recipe-steps">
-            {item.steps.map((step) => (
-              <li key={step}>{step}</li>
-            ))}
-          </ol>
-        </div>
-      </div>
-
-      {item.priority_ingredients_used?.length ? (
-        <p className="helper-text">
-          Priority ingredients used: {item.priority_ingredients_used.join(", ")}
-        </p>
       ) : null}
     </article>
   );
@@ -89,8 +103,6 @@ export function RecipeGeneratorPanel({
   recipes,
   loading,
   error,
-  generationMethod,
-  priorityIngredients,
   onGenerate,
 }) {
   return (
@@ -103,13 +115,12 @@ export function RecipeGeneratorPanel({
         </button>
       }
     >
-      {error ? <InlineMessage tone="error">{error}</InlineMessage> : null}
+      {error ? <div className="inline-message inline-message--error">{error}</div> : null}
 
-      {generationMethod ? (
-        <InlineMessage tone="info">
-          Generated with `{generationMethod}`
-          {priorityIngredients?.length ? ` using priority items: ${priorityIngredients.join(", ")}` : "."}
-        </InlineMessage>
+      {!loading && recipes.length > 0 ? (
+        <div className="inline-message inline-message--info">
+          Showing {recipes.length} recipe{recipes.length === 1 ? "" : "s"}.
+        </div>
       ) : null}
 
       {!loading && recipes.length === 0 ? (

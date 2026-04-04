@@ -11,13 +11,19 @@ import {
   updatePantryItem,
 } from "./api/pantry";
 import { generateRecipes } from "./api/recipes";
-import { ApiError, API_BASE_URL } from "./api/client";
-import { InlineMessage } from "./components/common/InlineMessage";
+import { ApiError } from "./api/client";
 import { SectionCard } from "./components/common/SectionCard";
 import { DetectionReviewPanel } from "./components/detection/DetectionReviewPanel";
 import { PantryDashboard } from "./components/pantry/PantryDashboard";
 import { RecipeGeneratorPanel } from "./components/recipes/RecipeGeneratorPanel";
 import { ImageUploadPanel } from "./components/upload/ImageUploadPanel";
+
+const WIZARD_STEPS = [
+  { id: "upload", label: "Upload", title: "Add a pantry photo or sample detections." },
+  { id: "review", label: "Review", title: "Confirm the ingredients you want to save." },
+  { id: "pantry", label: "Pantry", title: "Review active pantry state and make quick fixes." },
+  { id: "recipes", label: "Recipes", title: "Generate recipes from the confirmed pantry." },
+];
 
 function createDetectionRow(overrides = {}) {
   return {
@@ -62,6 +68,7 @@ export default function App() {
   const [isGeneratingRecipes, setIsGeneratingRecipes] = useState(false);
   const [editingById, setEditingById] = useState({});
   const [consumeById, setConsumeById] = useState({});
+  const [currentStep, setCurrentStep] = useState(0);
 
   useEffect(() => {
     loadIngredients();
@@ -138,6 +145,7 @@ export default function App() {
         ),
       );
       setDetectionFallbackMode(false);
+      setCurrentStep(1);
     } catch (error) {
       if (error instanceof ApiError && error.status === 404) {
         setDetectionFallbackMode(true);
@@ -178,6 +186,7 @@ export default function App() {
     ]);
     setDetectionFallbackMode(true);
     setDetectionError("");
+    setCurrentStep(1);
   }
 
   function handleDetectionRowChange(rowId, field, value) {
@@ -237,6 +246,7 @@ export default function App() {
       setRecipeItems([]);
       setRecipeGenerationMethod("");
       setPriorityIngredients([]);
+      setCurrentStep(2);
     } catch (error) {
       setDetectionError(error.message || "Failed to persist pantry items.");
     } finally {
@@ -365,6 +375,7 @@ export default function App() {
       setRecipeItems(response.recipes || []);
       setRecipeGenerationMethod(response.generation_method || "");
       setPriorityIngredients(response.priority_ingredients || []);
+      setCurrentStep(3);
     } catch (error) {
       setRecipeError(error.message || "Failed to generate recipes.");
     } finally {
@@ -372,146 +383,170 @@ export default function App() {
     }
   }
 
-  const unmatchedItems = ingestResult?.unmatched_detected_ingredients || [];
-  const inactiveItems = pantryItems.filter((item) => item.is_archived || item.is_false_positive);
+  const activePantryItems = pantryItems.filter(
+    (item) => !item.is_archived && !item.is_false_positive,
+  );
+  const stepId = WIZARD_STEPS[currentStep].id;
+
+  function goToStep(index) {
+    setCurrentStep(index);
+  }
+
+  function nextFromPantry() {
+    if (activePantryItems.length === 0) {
+      setPantryError("Add or keep at least one active pantry item before moving on.");
+      return;
+    }
+    setCurrentStep(3);
+  }
 
   return (
     <div className="app-shell">
       <header className="hero">
         <div>
           <p className="eyebrow">Pantry to Plate</p>
-          <h1>AI-powered pantry state and recipe demo</h1>
+          <h1>AI-powered recipe generator</h1>
           <p className="hero__copy">
             Scan, confirm, and cook from what is already in your pantry.
           </p>
         </div>
-
-        <div className="hero__sidecar">
-          <label>
-            Demo user
-            <input onChange={(event) => setUserId(event.target.value)} value={userId} />
-          </label>
-          <div className="hero__meta">
-            <span>Backend URL</span>
-            <code>{API_BASE_URL}</code>
-          </div>
-        </div>
       </header>
 
-      <main className="app-grid">
-        <div className="main-column">
-          <ImageUploadPanel
-            error={detectionError}
-            fallbackMode={detectionFallbackMode}
-            file={selectedFile}
-            isDetecting={isDetecting}
-            onDetect={handleDetect}
-            onFileChange={handleFileChange}
-            onLoadSample={loadSampleDetections}
-            previewUrl={previewUrl}
-          />
+      <main className="wizard-layout">
+        <section className="wizard-rail">
+          <div className="wizard-steps">
+            {WIZARD_STEPS.map((step, index) => {
+              const state =
+                index === currentStep ? "current" : index < currentStep ? "done" : "upcoming";
+              return (
+                <button
+                  className={`wizard-step wizard-step--${state}`}
+                  key={step.id}
+                  onClick={() => goToStep(index)}
+                  type="button"
+                >
+                  <span className="wizard-step__index">{index + 1}</span>
+                  <span>
+                    <strong>{step.label}</strong>
+                    <small>{step.title}</small>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
 
-          <DetectionReviewPanel
-            error={detectionError}
-            ingredients={ingredients}
-            ingestResult={ingestResult}
-            isSubmitting={isSubmittingPantry}
-            onAddRow={handleAddDetectionRow}
-            onChangeRow={handleDetectionRowChange}
-            onRemoveRow={handleRemoveDetectionRow}
-            onSubmit={handleIngestPantry}
-            rows={detectionRows}
-          />
-
-          <PantryDashboard
-            busyItemId={busyPantryItemId}
-            consumeById={consumeById}
-            editingById={editingById}
-            error={pantryError}
-            includeInactive={includeInactive}
-            items={pantryItems}
-            loading={isLoadingPantry}
-            onArchiveExpired={handleArchiveExpired}
-            onConsume={handleConsumePantryItem}
-            onConsumeChange={handleConsumeChange}
-            onDelete={handleDeletePantryItem}
-            onEditChange={handleEditChange}
-            onRefresh={loadPantry}
-            onSave={handleSavePantryItem}
-            onToggleFalsePositive={handleToggleFalsePositive}
-            onToggleIncludeInactive={setIncludeInactive}
-          />
-
-          <RecipeGeneratorPanel
-            error={recipeError}
-            generationMethod={recipeGenerationMethod}
-            loading={isGeneratingRecipes}
-            onGenerate={handleGenerateRecipes}
-            priorityIngredients={priorityIngredients}
-            recipes={recipeItems}
-          />
-        </div>
-
-        <aside className="side-column">
-          <SectionCard
-            title="Debug View"
-            subtitle="Unmatched detections and inactive pantry items."
-          >
-            {unmatchedItems.length ? (
-              <div className="debug-block">
-                <h3>Unmatched detections</h3>
-                <ul className="debug-list">
-                  {unmatchedItems.map((item) => (
-                    <li key={`${item.detected_name}-${item.reason}`}>
-                      <strong>{item.detected_name}</strong>
-                      <span>{item.reason}</span>
-                      <span>
-                        {item.quantity != null ? `${item.quantity} ${item.unit || ""}` : "No quantity"}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
+          <SectionCard title="Progress" subtitle="One screen at a time.">
+            <div className="wizard-summary">
+              <div>
+                <strong>{detectionRows.length}</strong>
+                <span>detections ready</span>
               </div>
-            ) : (
-              <div className="empty-mini">No unmatched detections from the latest pantry ingest.</div>
-            )}
-
-            {inactiveItems.length ? (
-              <div className="debug-block">
-                <h3>Inactive pantry items</h3>
-                <ul className="debug-list">
-                  {inactiveItems.map((item) => (
-                    <li key={item.id}>
-                      <strong>{item.ingredient.name}</strong>
-                      <span>{item.is_false_positive ? "Dismissed" : "Archived"}</span>
-                      <span>{item.source_detected_name || "No detected name"}</span>
-                    </li>
-                  ))}
-                </ul>
+              <div>
+                <strong>{activePantryItems.length}</strong>
+                <span>active pantry items</span>
               </div>
-            ) : (
-              <div className="empty-mini">
-                No archived or false-positive items are visible for this user.
+              <div>
+                <strong>{recipeItems.length}</strong>
+                <span>recipe results</span>
               </div>
-            )}
+            </div>
           </SectionCard>
+        </section>
 
-          <SectionCard
-            title="Route Status"
-            subtitle="Current backend connections."
-          >
-            <ul className="bullet-list">
-              <li>`/ingredients` is used for canonical ingredient suggestions.</li>
-              <li>`/pantry/*` powers ingest, retrieval, update, consume, dismiss, and archive flows.</li>
-              <li>`/recipes/generate` turns the live pantry state into recipe suggestions.</li>
-              <li>`/perception/detect` is attempted first, then the UI falls back to manual or sample detections.</li>
-            </ul>
+        <section className="wizard-screen">
+          {stepId === "upload" ? (
+            <>
+              <ImageUploadPanel
+                error={detectionError}
+                fallbackMode={detectionFallbackMode}
+                file={selectedFile}
+                isDetecting={isDetecting}
+                onDetect={handleDetect}
+                onFileChange={handleFileChange}
+                onLoadSample={loadSampleDetections}
+                previewUrl={previewUrl}
+              />
+            </>
+          ) : null}
 
-            <InlineMessage tone="info">
-              If image detection is unavailable, you can still complete the full demo with click-to-add matching.
-            </InlineMessage>
-          </SectionCard>
-        </aside>
+          {stepId === "review" ? (
+            <>
+              <DetectionReviewPanel
+                error={detectionError}
+                ingredients={ingredients}
+                ingestResult={ingestResult}
+                isSubmitting={isSubmittingPantry}
+                onAddRow={handleAddDetectionRow}
+                onChangeRow={handleDetectionRowChange}
+                onRemoveRow={handleRemoveDetectionRow}
+                onSubmit={handleIngestPantry}
+                rows={detectionRows}
+              />
+              <div className="wizard-nav">
+                <button className="button--secondary" onClick={() => goToStep(0)} type="button">
+                  Back
+                </button>
+                <button
+                  className="button"
+                  disabled={detectionRows.length === 0 || isSubmittingPantry}
+                  onClick={handleIngestPantry}
+                  type="button"
+                >
+                  {isSubmittingPantry ? "Saving..." : "Confirm and Continue"}
+                </button>
+              </div>
+            </>
+          ) : null}
+
+          {stepId === "pantry" ? (
+            <>
+              <PantryDashboard
+                busyItemId={busyPantryItemId}
+                consumeById={consumeById}
+                editingById={editingById}
+                error={pantryError}
+                includeInactive={includeInactive}
+                items={pantryItems}
+                loading={isLoadingPantry}
+                onArchiveExpired={handleArchiveExpired}
+                onConsume={handleConsumePantryItem}
+                onConsumeChange={handleConsumeChange}
+                onDelete={handleDeletePantryItem}
+                onEditChange={handleEditChange}
+                onRefresh={loadPantry}
+                onSave={handleSavePantryItem}
+                onToggleFalsePositive={handleToggleFalsePositive}
+                onToggleIncludeInactive={setIncludeInactive}
+              />
+              <div className="wizard-nav">
+                <button className="button--secondary" onClick={() => goToStep(1)} type="button">
+                  Back
+                </button>
+                <button className="button" onClick={nextFromPantry} type="button">
+                  Continue to Recipes
+                </button>
+              </div>
+            </>
+          ) : null}
+
+          {stepId === "recipes" ? (
+            <>
+              <RecipeGeneratorPanel
+                error={recipeError}
+                generationMethod={recipeGenerationMethod}
+                loading={isGeneratingRecipes}
+                onGenerate={handleGenerateRecipes}
+                priorityIngredients={priorityIngredients}
+                recipes={recipeItems}
+              />
+              <div className="wizard-nav">
+                <button className="button--secondary" onClick={() => goToStep(2)} type="button">
+                  Back
+                </button>
+              </div>
+            </>
+          ) : null}
+        </section>
       </main>
     </div>
   );

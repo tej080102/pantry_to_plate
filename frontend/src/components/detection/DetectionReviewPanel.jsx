@@ -76,11 +76,11 @@ export function DetectionReviewPanel({
               </label>
 
               <label>
-                Canonical correction (optional)
+                Match ingredient
                 <input
                   list="ingredient-options"
                   onChange={(event) => onChangeRow(row.id, "corrected_name", event.target.value)}
-                  placeholder="Leave blank to use detected name"
+                  placeholder="Choose a catalog match"
                   value={row.corrected_name}
                 />
               </label>
@@ -171,18 +171,6 @@ export function DetectionReviewPanel({
           <option key={ingredient.id} value={ingredient.name} />
         ))}
       </datalist>
-
-      <div className="button-row">
-        <button
-          className="button"
-          disabled={rows.length === 0 || isSubmitting}
-          onClick={onSubmit}
-          type="button"
-        >
-          {isSubmitting ? "Saving Pantry..." : "Confirm Pantry State"}
-        </button>
-      </div>
-
       {error ? <InlineMessage tone="error">{error}</InlineMessage> : null}
 
       {ingestResult?.unmatched_detected_ingredients?.length ? (
