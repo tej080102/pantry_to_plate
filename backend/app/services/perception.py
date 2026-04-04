@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import colorsys
+import csv
 import json
 import logging
 import math
@@ -8,6 +9,7 @@ from dataclasses import dataclass
 from io import BytesIO
 from pathlib import Path
 from typing import Any
+from functools import lru_cache
 
 from PIL import Image, ImageOps, UnidentifiedImageError
 
@@ -40,24 +42,7 @@ IMAGE_FORMAT_TO_MIME_TYPE = {
     "GIF": "image/gif",
     "TIFF": "image/tiff",
 }
-GEMINI_PERCEPTION_PROMPT = """
-You are detecting food ingredients visible in a pantry or fridge photo.
-
-Return only a JSON array. Each item must contain:
-- raw_label: short lower-case phrase from the image, such as "spinach" or "olive oil"
-- normalized_name: cleaned canonical ingredient name in title case
-- confidence: number from 0.0 to 1.0
-- quantity_hint: number or null
-- unit_hint: short unit string or null
-
-Rules:
-- Include only ingredients that are plausibly visible in the image.
-- Do not include containers, shelves, or non-food objects.
-- Prefer common pantry ingredient names over brands.
-- Keep the list concise and high precision.
-- If quantity is unclear, use null.
-- If no ingredients are confidently visible, return an empty array.
-""".strip()
+_PROMPT_TERM_LIMIT = 80
 GEMINI_DETECTIONS_JSON_SCHEMA: dict[str, Any] = {
     "type": "ARRAY",
     "items": {
@@ -162,6 +147,103 @@ INGREDIENT_PROFILES: tuple[IngredientProfile, ...] = (
         ),
     ),
 )
+
+
+def _build_gemini_perception_prompt() -> str:
+    catalog_terms = _load_clean_catalog_terms()
+    catalog_block = ", ".join(catalog_terms) if catalog_terms else "No catalog terms available."
+    return f"""
+You are detecting food ingredients visible in a pantry or fridge photo.
+
+Return only a JSON array. Each item must contain:
+- raw_label: short lower-case phrase copied from the image, such as "banana" or "olive oil"
+- normalized_name: cleaned canonical ingredient name in title case
+- confidence: number from 0.0 to 1.0
+- quantity_hint: number or null
+- unit_hint: short unit string or null
+
+The app's ingredient data is grounded in cleaned USDA ingredient records under backend/data/clean/usda_foundation.
+Use that data style when choosing names. Supported catalog-style ingredient labels include:
+{catalog_block}
+
+Rules:
+- Include only standalone edible ingredients that are clearly visible.
+- Exclude containers, shelves, packaging, brands, logos, and non-food objects.
+- Exclude prepared dishes, mixed meals, baked goods, plated food, bottled drinks, jars, and condiments unless the underlying ingredient itself is unmistakable and fits the catalog style.
+- Prefer simple grocery ingredient names that align to the cleaned USDA data. Use broad labels like "Banana", "Orange", "Peach", "Tomato", "Cheese", "Egg", or "Olive Oil" instead of unsupported varieties or marketing terms.
+- normalized_name MUST match one supported catalog-style ingredient label from the list above. If none fits cleanly, omit the item.
+- If the visible item would require an unsupported or overly specific label, either back off to the nearest clear catalog-style ingredient name or omit it.
+- Do not invent labels like "tart", "fruit", "produce", "snack", or "bell pepper" unless that exact ingredient is clearly supported by the catalog-style data.
+- Favor precision over recall. If unsure, leave the item out.
+- Keep the list concise and high precision.
+- If quantity is unclear, use null.
+- If no ingredients are confidently visible, return an empty array.
+""".strip()
+
+
+@lru_cache(maxsize=1)
+def _load_clean_catalog_terms() -> tuple[str, ...]:
+    clean_dir = Path(__file__).resolve().parents[2] / "data" / "clean" / "usda_foundation"
+    clean_files = sorted(clean_dir.glob("ingredients_*.csv"))
+    if not clean_files:
+        return ()
+
+    latest_file = clean_files[-1]
+    terms: set[str] = set()
+    with latest_file.open(newline="", encoding="utf-8", errors="ignore") as handle:
+        reader = csv.DictReader(handle)
+        for row in reader:
+            name = (row.get("name") or "").strip()
+            term = _catalog_prompt_term(name)
+            if term:
+                terms.add(term)
+
+    filtered = sorted(terms)
+    return tuple(filtered[:_PROMPT_TERM_LIMIT])
+
+
+def _catalog_prompt_term(name: str) -> str | None:
+    if not name:
+        return None
+
+    first_chunk = name.split(",", 1)[0].strip()
+    cleaned = " ".join(first_chunk.replace("-", " ").replace("(", " ").split()).lower()
+    if not cleaned:
+        return None
+
+    overrides = {
+        "apples": "apple",
+        "bananas": "banana",
+        "beans": "bean",
+        "carrots": "carrot",
+        "cookies": "cookie",
+        "eggs": "egg",
+        "figs": "fig",
+        "melons": "melon",
+        "nectarines": "nectarine",
+        "nuts": "nut",
+        "olives": "olive",
+        "onions": "onion",
+        "oranges": "orange",
+        "peaches": "peach",
+        "pears": "pear",
+        "pickles": "pickle",
+        "seeds": "seed",
+        "strawberries": "strawberry",
+        "sugars": "sugar",
+        "tomatoes": "tomato",
+        "hummus": "hummus",
+        "kiwifruit": "kiwifruit",
+        "olive oil": "olive oil",
+        "grapefruit juice": "grapefruit juice",
+        "peanut butter": "peanut butter",
+        "onion rings": "onion rings",
+    }
+    disallowed = {"restaurant"}
+    term = overrides.get(cleaned, cleaned)
+    if term in disallowed:
+        return None
+    return term
 
 
 def detect_ingredients_from_upload(
@@ -271,7 +353,7 @@ def _detect_with_gemini_vertex(
         response = client.models.generate_content(
             model=settings.VISION_MODEL,
             contents=[
-                GEMINI_PERCEPTION_PROMPT,
+                _build_gemini_perception_prompt(),
                 types.Part.from_bytes(data=payload, mime_type=content_type),
             ],
             config={
@@ -307,6 +389,7 @@ def _coerce_gemini_detections(payload: Any) -> list[DetectedIngredientRead]:
             "Vertex AI Gemini returned an unexpected detection payload shape."
         )
 
+    supported_terms = set(_load_clean_catalog_terms())
     by_name: dict[str, DetectedIngredientRead] = {}
     for item in payload:
         if not isinstance(item, dict):
@@ -320,6 +403,10 @@ def _coerce_gemini_detections(payload: Any) -> list[DetectedIngredientRead]:
 
         if not raw_label or not normalized_name or confidence is None:
             continue
+        if supported_terms:
+            supported_term = _catalog_prompt_term(normalized_name)
+            if not supported_term or supported_term not in supported_terms:
+                continue
 
         detection = DetectedIngredientRead(
             raw_label=raw_label,
