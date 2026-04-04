@@ -290,11 +290,19 @@ class PantryStateTestCase(unittest.TestCase):
             updated = update_pantry_item(
                 session,
                 pantry_item.id,
-                PantryItemUpdate(quantity=12, unit="eggs"),
+                PantryItemUpdate(
+                    quantity=12,
+                    unit="eggs",
+                    estimated_expiry_date=date.today() + timedelta(days=14),
+                ),
             )
             self.assertIsNotNone(updated)
             self.assertEqual(updated.quantity, 12)
             self.assertEqual(updated.unit, "eggs")
+            self.assertEqual(
+                updated.estimated_expiry_date,
+                date.today() + timedelta(days=14),
+            )
 
             consumed = consume_pantry_item(
                 session,

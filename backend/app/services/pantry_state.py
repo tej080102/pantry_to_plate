@@ -573,18 +573,17 @@ def update_pantry_item(
     if pantry_item is None:
         return None
 
-    if (
-        payload.quantity is None
-        and payload.unit is None
-        and payload.is_false_positive is None
-    ):
+    provided_fields = payload.model_fields_set
+    if not provided_fields:
         raise ValueError("At least one updatable field must be provided")
 
-    if payload.quantity is not None:
+    if "quantity" in provided_fields:
         pantry_item.quantity = payload.quantity
-    if payload.unit is not None:
+    if "unit" in provided_fields:
         pantry_item.unit = payload.unit
-    if payload.is_false_positive is not None:
+    if "estimated_expiry_date" in provided_fields:
+        pantry_item.estimated_expiry_date = payload.estimated_expiry_date
+    if "is_false_positive" in provided_fields:
         pantry_item.is_false_positive = payload.is_false_positive
         if payload.is_false_positive:
             pantry_item.is_priority = False

@@ -53,6 +53,7 @@ class PantryItemRead(BaseModel):
 class PantryItemUpdate(BaseModel):
     quantity: float | None = Field(default=None, ge=0)
     unit: str | None = None
+    estimated_expiry_date: date | None = None
     is_false_positive: bool | None = None
 
 

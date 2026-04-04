@@ -31,7 +31,6 @@ function createDetectionRow(overrides = {}) {
     corrected_name: "",
     quantity: "",
     unit: "",
-    detected_confidence: "",
     ...overrides,
   };
 }
@@ -42,6 +41,13 @@ function toOptionalNumber(value) {
   }
   const parsed = Number(value);
   return Number.isNaN(parsed) ? null : parsed;
+}
+
+function toOptionalDate(value) {
+  if (!value) {
+    return null;
+  }
+  return value;
 }
 
 export default function App() {
@@ -113,6 +119,7 @@ export default function App() {
             {
               quantity: item.quantity ?? "",
               unit: item.unit ?? "",
+              estimated_expiry_date: item.estimated_expiry_date ?? "",
             },
           ]),
         ),
@@ -140,7 +147,6 @@ export default function App() {
             detected_name: item.normalized_name || item.raw_label || item.detected_name || "",
             quantity: item.quantity_hint ?? "",
             unit: item.unit_hint ?? "",
-            detected_confidence: item.confidence ?? "",
           }),
         ),
       );
@@ -167,21 +173,18 @@ export default function App() {
         corrected_name: "Spinach",
         quantity: "120",
         unit: "g",
-        detected_confidence: "0.96",
       }),
       createDetectionRow({
         detected_name: "egg",
         corrected_name: "Egg",
         quantity: "6",
         unit: "count",
-        detected_confidence: "0.91",
       }),
       createDetectionRow({
         detected_name: "shredded cheese",
         corrected_name: "Cheese",
         quantity: "80",
         unit: "g",
-        detected_confidence: "0.74",
       }),
     ]);
     setDetectionFallbackMode(true);
@@ -214,7 +217,6 @@ export default function App() {
           detected_name: row.detected_name.trim(),
           quantity: toOptionalNumber(row.quantity),
           unit: row.unit || null,
-          detected_confidence: toOptionalNumber(row.detected_confidence),
         })),
         manual_corrections: filteredRows
           .filter(
@@ -239,6 +241,7 @@ export default function App() {
             {
               quantity: item.quantity ?? "",
               unit: item.unit ?? "",
+              estimated_expiry_date: item.estimated_expiry_date ?? "",
             },
           ]),
         ),
@@ -288,6 +291,7 @@ export default function App() {
       updatePantryItem(itemId, {
         quantity: toOptionalNumber(edit.quantity),
         unit: edit.unit || null,
+        estimated_expiry_date: toOptionalDate(edit.estimated_expiry_date),
       }),
     );
   }
@@ -369,6 +373,7 @@ export default function App() {
               {
                 quantity: item.quantity ?? "",
                 unit: item.unit ?? "",
+                estimated_expiry_date: item.estimated_expiry_date ?? "",
               },
             ]),
           ),

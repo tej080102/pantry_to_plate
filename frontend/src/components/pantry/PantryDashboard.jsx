@@ -45,10 +45,6 @@ function PantryItemCard({
           <dt>Priority rank</dt>
           <dd>{item.priority_rank}</dd>
         </div>
-        <div>
-          <dt>Confidence</dt>
-          <dd>{item.detected_confidence != null ? item.detected_confidence : "N/A"}</dd>
-        </div>
       </dl>
 
       <div className="pantry-card__controls">
@@ -68,6 +64,14 @@ function PantryItemCard({
             <input
               onChange={(event) => onEditChange(item.id, "unit", event.target.value)}
               value={editingState.unit}
+            />
+          </label>
+          <label>
+            Expiry
+            <input
+              onChange={(event) => onEditChange(item.id, "estimated_expiry_date", event.target.value)}
+              type="date"
+              value={editingState.estimated_expiry_date}
             />
           </label>
         </div>
@@ -141,7 +145,13 @@ export function PantryDashboard({
         {items.map((item) => (
           <PantryItemCard
             busyItemId={busyItemId}
-            editingState={editingById[item.id] || { quantity: item.quantity ?? "", unit: item.unit ?? "" }}
+            editingState={
+              editingById[item.id] || {
+                quantity: item.quantity ?? "",
+                unit: item.unit ?? "",
+                estimated_expiry_date: item.estimated_expiry_date ?? "",
+              }
+            }
             item={item}
             key={item.id}
             onDelete={onDelete}

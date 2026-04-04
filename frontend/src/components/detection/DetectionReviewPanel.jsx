@@ -8,7 +8,6 @@ function createBlankRow() {
     corrected_name: "",
     quantity: "",
     unit: "",
-    detected_confidence: "",
   };
 }
 
@@ -121,21 +120,6 @@ export function DetectionReviewPanel({
                     onChange={(event) => onChangeRow(row.id, "unit", event.target.value)}
                     placeholder="g"
                     value={row.unit}
-                  />
-                </label>
-
-                <label>
-                  Confidence
-                  <input
-                    max="1"
-                    min="0"
-                    onChange={(event) =>
-                      onChangeRow(row.id, "detected_confidence", event.target.value)
-                    }
-                    placeholder="0.91"
-                    step="0.01"
-                    type="number"
-                    value={row.detected_confidence}
                   />
                 </label>
               </div>
