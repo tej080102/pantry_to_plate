@@ -316,12 +316,13 @@ def _detect_with_gemini_vertex(
     payload: bytes,
     content_type: str,
 ) -> list[DetectedIngredientRead]:
+    provider_mode = "Vertex AI" if settings.GOOGLE_GENAI_USE_VERTEXAI else "Gemini API"
     try:
         from google import genai
         from google.genai import types
     except ImportError as exc:
         raise PerceptionProviderError(
-            "Gemini on Vertex AI requires the 'google-genai' package."
+            f"{provider_mode} perception requires the 'google-genai' package."
         ) from exc
 
     if settings.GOOGLE_GENAI_USE_VERTEXAI:
@@ -364,20 +365,20 @@ def _detect_with_gemini_vertex(
         )
     except Exception as exc:
         raise PerceptionProviderError(
-            "Vertex AI Gemini request failed. Verify ADC credentials, "
-            "project/region settings, and model access."
+            "Gemini perception request failed. Verify the active credentials, "
+            "model access, and API settings."
         ) from exc
 
     parsed = getattr(response, "parsed", None)
     if parsed is None:
         response_text = getattr(response, "text", "")
         if not response_text:
-            raise PerceptionProviderError("Vertex AI Gemini returned an empty response.")
+            raise PerceptionProviderError("Gemini perception returned an empty response.")
         try:
             parsed = json.loads(response_text)
         except json.JSONDecodeError as exc:
             raise PerceptionProviderError(
-                "Vertex AI Gemini returned non-JSON content for structured perception output."
+                "Gemini perception returned non-JSON content for structured output."
             ) from exc
 
     return _coerce_gemini_detections(parsed)

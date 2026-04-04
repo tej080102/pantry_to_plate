@@ -256,12 +256,13 @@ def _generate_with_gemini(
     max_recipes: int,
     servings: int,
 ) -> list[GeneratedRecipe]:
+    provider_mode = "Vertex AI" if settings.GOOGLE_GENAI_USE_VERTEXAI else "Gemini API"
     try:
         from google import genai
         from google.genai import types
     except ImportError as exc:
         raise RuntimeError(
-            "Recipe generation with Gemini requires the 'google-genai' package."
+            f"Recipe generation with {provider_mode} requires the 'google-genai' package."
         ) from exc
 
     if settings.GOOGLE_GENAI_USE_VERTEXAI:
