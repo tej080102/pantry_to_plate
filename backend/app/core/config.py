@@ -46,6 +46,7 @@ class Settings(BaseModel):
     )
     GCP_PROJECT_ID: str | None = os.getenv("GCP_PROJECT_ID")
     GCP_REGION: str = os.getenv("GCP_REGION", "us-central1")
+    GOOGLE_API_KEY: str | None = os.getenv("GOOGLE_API_KEY")
     GCS_UPLOAD_BUCKET: str | None = os.getenv("GCS_UPLOAD_BUCKET")
     GCS_RAW_BUCKET: str | None = os.getenv("GCS_RAW_BUCKET")
     GCS_CLEAN_BUCKET: str | None = os.getenv("GCS_CLEAN_BUCKET")

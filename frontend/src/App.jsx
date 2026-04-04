@@ -10,7 +10,7 @@ import {
   ingestPantry,
   updatePantryItem,
 } from "./api/pantry";
-import { generateRecipeSuggestionsFromCatalog } from "./api/recipes";
+import { generateRecipes } from "./api/recipes";
 import { ApiError, API_BASE_URL } from "./api/client";
 import { InlineMessage } from "./components/common/InlineMessage";
 import { SectionCard } from "./components/common/SectionCard";
@@ -18,7 +18,6 @@ import { DetectionReviewPanel } from "./components/detection/DetectionReviewPane
 import { PantryDashboard } from "./components/pantry/PantryDashboard";
 import { RecipeGeneratorPanel } from "./components/recipes/RecipeGeneratorPanel";
 import { ImageUploadPanel } from "./components/upload/ImageUploadPanel";
-import { rankRecipesAgainstPantry } from "./utils/recipeHelpers";
 
 function createDetectionRow(overrides = {}) {
   return {
@@ -58,6 +57,8 @@ export default function App() {
   const [isLoadingPantry, setIsLoadingPantry] = useState(false);
   const [busyPantryItemId, setBusyPantryItemId] = useState(null);
   const [recipeItems, setRecipeItems] = useState([]);
+  const [recipeGenerationMethod, setRecipeGenerationMethod] = useState("");
+  const [priorityIngredients, setPriorityIngredients] = useState([]);
   const [isGeneratingRecipes, setIsGeneratingRecipes] = useState(false);
   const [editingById, setEditingById] = useState({});
   const [consumeById, setConsumeById] = useState({});
@@ -234,6 +235,8 @@ export default function App() {
         ),
       );
       setRecipeItems([]);
+      setRecipeGenerationMethod("");
+      setPriorityIngredients([]);
     } catch (error) {
       setDetectionError(error.message || "Failed to persist pantry items.");
     } finally {
@@ -324,12 +327,44 @@ export default function App() {
   }
 
   async function handleGenerateRecipes() {
+    const activePantryItems = pantryItems.filter(
+      (item) => !item.is_archived && !item.is_false_positive,
+    );
+    if (activePantryItems.length === 0) {
+      setRecipeItems([]);
+      setPriorityIngredients([]);
+      setRecipeGenerationMethod("");
+      setRecipeError("Load pantry items first, then generate recipe suggestions.");
+      return;
+    }
+
     setIsGeneratingRecipes(true);
     setRecipeError("");
     try {
-      const details = await generateRecipeSuggestionsFromCatalog();
-      const ranked = rankRecipesAgainstPantry(details, pantryItems);
-      setRecipeItems(ranked.slice(0, 6));
+      const today = new Date();
+      const payload = {
+        ingredients: activePantryItems.map((item) => ({
+          name: item.ingredient.name,
+          quantity: item.quantity,
+          unit: item.unit || item.ingredient.standard_unit || null,
+          priority: item.priority_bucket,
+          days_until_expiry: item.estimated_expiry_date
+            ? Math.max(
+                0,
+                Math.ceil(
+                  (new Date(`${item.estimated_expiry_date}T00:00:00`) - today) /
+                    (1000 * 60 * 60 * 24),
+                ),
+              )
+            : null,
+        })),
+        max_recipes: 4,
+        servings: 2,
+      };
+      const response = await generateRecipes(payload);
+      setRecipeItems(response.recipes || []);
+      setRecipeGenerationMethod(response.generation_method || "");
+      setPriorityIngredients(response.priority_ingredients || []);
     } catch (error) {
       setRecipeError(error.message || "Failed to generate recipes.");
     } finally {
@@ -410,10 +445,11 @@ export default function App() {
 
           <RecipeGeneratorPanel
             error={recipeError}
+            generationMethod={recipeGenerationMethod}
             loading={isGeneratingRecipes}
             onGenerate={handleGenerateRecipes}
+            priorityIngredients={priorityIngredients}
             recipes={recipeItems}
-            unavailable
           />
         </div>
 
@@ -468,13 +504,12 @@ export default function App() {
             <ul className="bullet-list">
               <li>`/ingredients` is used for canonical ingredient suggestions.</li>
               <li>`/pantry/*` powers ingest, retrieval, update, consume, dismiss, and archive flows.</li>
-              <li>/recipes and /recipes/{'{'}id{'}'} are used to simulate recipe generation from the live catalog.</li>
+              <li>`/recipes/generate` turns the live pantry state into recipe suggestions.</li>
               <li>`/perception/detect` is attempted first; if Gemini detection fails, the UI falls back to manual/sample detections.</li>
             </ul>
 
             <InlineMessage tone="info">
-              The frontend stays usable even when perception is temporarily unavailable or the
-              recipe-generation API is not yet implemented.
+              The frontend stays usable even when perception is temporarily unavailable.
             </InlineMessage>
           </SectionCard>
         </aside>

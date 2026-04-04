@@ -373,6 +373,68 @@ class PantryStateTestCase(unittest.TestCase):
             self.assertEqual(items[0].ingredient.name, "Egg")
             self.assertEqual(items[0].source_detected_name, "brown egg")
 
+    def test_ingest_matches_common_names_to_catalog_variants(self) -> None:
+        with self.session_factory() as session:
+            session.add_all(
+                [
+                    Ingredient(
+                        name="Tomatoes, grape, raw",
+                        category="Vegetable",
+                        standard_unit="g",
+                        estimated_shelf_life_days=5,
+                        storage_type="refrigerated",
+                    ),
+                    Ingredient(
+                        name="Onions, red, raw",
+                        category="Vegetable",
+                        standard_unit="g",
+                        estimated_shelf_life_days=7,
+                        storage_type="counter",
+                    ),
+                    Ingredient(
+                        name="Cheese, cheddar",
+                        category="Dairy",
+                        standard_unit="g",
+                        estimated_shelf_life_days=14,
+                        storage_type="refrigerated",
+                    ),
+                    Ingredient(
+                        name="Eggs, Grade A, Large, egg whole",
+                        category="Protein",
+                        standard_unit="count",
+                        estimated_shelf_life_days=21,
+                        storage_type="refrigerated",
+                    ),
+                ]
+            )
+            session.commit()
+
+            payload = PantryIngestRequest(
+                user_id="demo-user",
+                detected_ingredients=[
+                    DetectedIngredientInput(detected_name="tomato", quantity=3, unit="count"),
+                    DetectedIngredientInput(detected_name="onion", quantity=1, unit="count"),
+                    DetectedIngredientInput(detected_name="cheese", quantity=80, unit="g"),
+                    DetectedIngredientInput(detected_name="egg", quantity=6, unit="count"),
+                ],
+            )
+
+            items, unmatched = ingest_pantry_items(session, payload)
+
+            self.assertEqual(len(unmatched), 0)
+            self.assertEqual(len(items), 4)
+            self.assertEqual(
+                sorted(item.ingredient.name for item in items),
+                sorted(
+                    [
+                        "Tomatoes, grape, raw",
+                        "Onions, red, raw",
+                        "Cheese, cheddar",
+                        "Eggs, Grade A, Large, egg whole",
+                    ]
+                ),
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

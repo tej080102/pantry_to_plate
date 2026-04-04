@@ -16,6 +16,7 @@ from app.schemas.recipe import (
     RecipeGenerateRequest,
     RecipeGenerateResponse,
 )
+from app.services.ingredient_matching import ingredient_names_match
 
 logger = logging.getLogger(__name__)
 
@@ -237,8 +238,8 @@ def _find_candidate_recipes(
 
 
 def _fuzzy_match(recipe_name: str, pantry_name: str) -> bool:
-    """True when either string is a substring of the other."""
-    return recipe_name in pantry_name or pantry_name in recipe_name
+    """Treat close grocery names and canonical ingredient names as equivalent."""
+    return ingredient_names_match(recipe_name, pantry_name)
 
 
 
@@ -263,9 +264,14 @@ def _generate_with_gemini(
             "Recipe generation with Gemini requires the 'google-genai' package."
         ) from exc
 
-    if settings.GOOGLE_GENAI_USE_VERTEXAI and not settings.GCP_PROJECT_ID:
+    if settings.GOOGLE_GENAI_USE_VERTEXAI:
+        if not settings.GCP_PROJECT_ID:
+            raise RuntimeError(
+                "GCP_PROJECT_ID must be set when using Vertex AI for recipe generation."
+            )
+    elif not settings.GOOGLE_API_KEY:
         raise RuntimeError(
-            "GCP_PROJECT_ID must be set when using Vertex AI for recipe generation."
+            "GOOGLE_API_KEY must be set when using Gemini without Vertex AI for recipe generation."
         )
 
     model = settings.RECIPE_MODEL or _DEFAULT_RECIPE_MODEL
@@ -278,12 +284,19 @@ def _generate_with_gemini(
         servings=servings,
     )
 
-    client = genai.Client(
-        vertexai=settings.GOOGLE_GENAI_USE_VERTEXAI,
-        project=settings.GCP_PROJECT_ID,
-        location=settings.GCP_REGION,
-        http_options=types.HttpOptions(api_version="v1"),
-    )
+    client_kwargs: dict[str, Any] = {
+        "vertexai": settings.GOOGLE_GENAI_USE_VERTEXAI,
+        "http_options": types.HttpOptions(
+            api_version="v1" if settings.GOOGLE_GENAI_USE_VERTEXAI else "v1beta"
+        ),
+    }
+    if settings.GOOGLE_GENAI_USE_VERTEXAI:
+        client_kwargs["project"] = settings.GCP_PROJECT_ID
+        client_kwargs["location"] = settings.GCP_REGION
+    else:
+        client_kwargs["api_key"] = settings.GOOGLE_API_KEY
+
+    client = genai.Client(**client_kwargs)
 
     response = client.models.generate_content(
         model=model,

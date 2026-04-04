@@ -242,17 +242,31 @@ def _detect_with_gemini_vertex(
             "Gemini on Vertex AI requires the 'google-genai' package."
         ) from exc
 
-    if settings.GOOGLE_GENAI_USE_VERTEXAI and not settings.GCP_PROJECT_ID:
+    if settings.GOOGLE_GENAI_USE_VERTEXAI:
+        if not settings.GCP_PROJECT_ID:
+            raise PerceptionProviderError(
+                "GCP_PROJECT_ID must be set when using Gemini through Vertex AI."
+            )
+    elif not settings.GOOGLE_API_KEY:
         raise PerceptionProviderError(
-            "GCP_PROJECT_ID must be set when VISION_PROVIDER is 'gemini_vertex'."
+            "GOOGLE_API_KEY must be set when using Gemini without Vertex AI."
         )
 
     try:
+        client_kwargs: dict[str, Any] = {
+            "vertexai": settings.GOOGLE_GENAI_USE_VERTEXAI,
+            "http_options": types.HttpOptions(
+                api_version="v1" if settings.GOOGLE_GENAI_USE_VERTEXAI else "v1beta"
+            ),
+        }
+        if settings.GOOGLE_GENAI_USE_VERTEXAI:
+            client_kwargs["project"] = settings.GCP_PROJECT_ID
+            client_kwargs["location"] = settings.GCP_REGION
+        else:
+            client_kwargs["api_key"] = settings.GOOGLE_API_KEY
+
         client = genai.Client(
-            vertexai=settings.GOOGLE_GENAI_USE_VERTEXAI,
-            project=settings.GCP_PROJECT_ID,
-            location=settings.GCP_REGION,
-            http_options=types.HttpOptions(api_version="v1"),
+            **client_kwargs,
         )
         response = client.models.generate_content(
             model=settings.VISION_MODEL,

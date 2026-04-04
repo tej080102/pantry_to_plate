@@ -4,20 +4,22 @@ This backend reads configuration from `backend/.env` for local work. Production 
 
 ## Local development
 
-For local development with SQLite and the heuristic perception fallback:
+For local development with SQLite and Gemini directly via API key:
 
 ```env
 ENVIRONMENT=local
 PROJECT_NAME=Pantry to Plate
-DATABASE_URL=sqlite:///./pantry_to_plate.db
-VISION_PROVIDER=local_heuristic
+DATABASE_URL=sqlite:///./test.db
+GOOGLE_GENAI_USE_VERTEXAI=false
+GOOGLE_API_KEY=your-gemini-api-key
+VISION_PROVIDER=gemini_vertex
 VISION_MODEL=gemini-2.5-flash
-PERCEPTION_ALLOW_LOCAL_FALLBACK=true
+PERCEPTION_ALLOW_LOCAL_FALLBACK=false
 CORS_ALLOW_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
 LOG_LEVEL=INFO
 ```
 
-This setup keeps the backend runnable even without GCP credentials.
+This setup forces local detection to use Gemini instead of the heuristic fallback.
 
 ## Vertex AI Gemini configuration
 
@@ -76,6 +78,7 @@ Recommended permissions at minimum:
 - `CORS_ALLOW_ORIGINS`: comma-separated allowed frontend origins
 - `GCP_PROJECT_ID`: GCP project identifier
 - `GCP_REGION`: deployment region, for example `us-central1`
+- `GOOGLE_API_KEY`: Gemini API key for non-Vertex local usage
 - `GOOGLE_GENAI_USE_VERTEXAI`: whether to call Gemini through Vertex AI
 - `VISION_PROVIDER`: `gemini_vertex` or `local_heuristic`
 - `VISION_MODEL`: Gemini model name, for example `gemini-2.5-flash`

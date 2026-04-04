@@ -16,6 +16,7 @@ from app.schemas.pantry import (
     PantryItemRead,
     UnmatchedDetectedIngredientRead,
 )
+from app.services.ingredient_matching import normalize_text, resolve_ingredient_by_name
 from app.services.spoilage import (
     estimate_expiry_date,
     is_priority_bucket,
@@ -41,7 +42,7 @@ CATEGORY_SHELF_LIFE_DEFAULTS: dict[str, int] = {
 
 
 def _normalize_name(value: str) -> str:
-    return " ".join(value.strip().lower().split())
+    return normalize_text(value)
 
 
 def _build_correction_map(
@@ -186,6 +187,8 @@ def ingest_pantry_items(
     for detection in payload.detected_ingredients:
         canonical_name = _canonical_name_for_detection(detection, correction_map)
         ingredient = ingredient_by_name.get(_normalize_name(canonical_name))
+        if ingredient is None:
+            ingredient = resolve_ingredient_by_name(ingredient_by_name.values(), canonical_name)
         if ingredient is None:
             unmatched_detections.append(
                 UnmatchedDetectedIngredientRead(

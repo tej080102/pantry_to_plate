@@ -8,7 +8,9 @@ export function fetchRecipe(recipeId) {
   return apiRequest(`/recipes/${recipeId}`);
 }
 
-export async function generateRecipeSuggestionsFromCatalog() {
-  const recipes = await fetchRecipes();
-  return Promise.all(recipes.map((recipe) => fetchRecipe(recipe.id)));
+export function generateRecipes(payload) {
+  return apiRequest("/recipes/generate", {
+    method: "POST",
+    body: payload,
+  });
 }

@@ -3,19 +3,21 @@ import { InlineMessage } from "../common/InlineMessage";
 import { StatusBadge } from "../common/StatusBadge";
 
 function RecipeCard({ item }) {
-  const { recipe, matched, missing, urgentMatches, nutritionEstimate } = item;
+  const matched = item.ingredients.filter((ingredient) => ingredient.available_in_pantry);
+  const missing = item.ingredients.filter((ingredient) => !ingredient.available_in_pantry);
+  const urgentMatches = matched.filter((ingredient) => ingredient.is_priority);
 
   return (
     <article className="recipe-card">
       <div className="recipe-card__header">
         <div>
-          <h3>{recipe.title}</h3>
+          <h3>{item.title}</h3>
           <p>
-            {recipe.source_name || "Catalog recipe"}
-            {recipe.estimated_cook_time_minutes
-              ? ` • ${recipe.estimated_cook_time_minutes} min`
+            {item.pantry_coverage_percent}% pantry coverage
+            {item.estimated_cook_time_minutes
+              ? ` • ${item.estimated_cook_time_minutes} min`
               : ""}
-            {recipe.servings ? ` • ${recipe.servings} servings` : ""}
+            {item.servings ? ` • ${item.servings} servings` : ""}
           </p>
         </div>
         <div className="badge-row">
@@ -28,10 +30,10 @@ function RecipeCard({ item }) {
           <strong>Matched pantry items</strong>
           <ul>
             {matched.length ? (
-              matched.map(({ pantryItem, recipeIngredient }) => (
-                <li key={recipeIngredient.id}>
-                  {recipeIngredient.ingredient.name}
-                  {pantryItem.priority_bucket ? ` (${pantryItem.priority_bucket})` : ""}
+              matched.map((ingredient) => (
+                <li key={ingredient.name}>
+                  {ingredient.name}
+                  {ingredient.is_priority ? " (priority)" : ""}
                 </li>
               ))
             ) : (
@@ -43,30 +45,22 @@ function RecipeCard({ item }) {
         <div>
           <strong>Missing ingredients</strong>
           <ul>
-            {missing.length ? missing.map((name) => <li key={name}>{name}</li>) : <li>None</li>}
+            {missing.length ? missing.map((ingredient) => <li key={ingredient.name}>{ingredient.name}</li>) : <li>None</li>}
           </ul>
         </div>
       </div>
 
-      {nutritionEstimate ? (
-        <div className="nutrition-strip">
-          <span>{nutritionEstimate.calories} kcal</span>
-          <span>{nutritionEstimate.protein}g protein</span>
-          <span>{nutritionEstimate.carbs}g carbs</span>
-          <span>{nutritionEstimate.fat}g fat</span>
-          <span>{nutritionEstimate.fiber}g fiber</span>
-        </div>
-      ) : null}
+      <p className="helper-text">{item.description}</p>
 
       <div className="recipe-details">
         <div>
           <strong>Ingredient list</strong>
           <ul>
-            {recipe.recipe_ingredients.map((row) => (
-              <li key={row.id}>
-                {row.quantity != null ? `${row.quantity} ${row.unit || ""} ` : ""}
-                {row.ingredient.name}
-                {row.is_optional ? " (optional)" : ""}
+            {item.ingredients.map((ingredient) => (
+              <li key={ingredient.name}>
+                {ingredient.quantity ? `${ingredient.quantity} ` : ""}
+                {ingredient.name}
+                {ingredient.available_in_pantry ? " (in pantry)" : ""}
               </li>
             ))}
           </ul>
@@ -74,12 +68,18 @@ function RecipeCard({ item }) {
 
         <div>
           <strong>Instructions</strong>
-          <p>{recipe.instructions || "No structured instructions available."}</p>
+          <ol className="recipe-steps">
+            {item.steps.map((step) => (
+              <li key={step}>{step}</li>
+            ))}
+          </ol>
         </div>
       </div>
 
-      {nutritionEstimate?.note ? (
-        <p className="helper-text">{nutritionEstimate.note}</p>
+      {item.priority_ingredients_used?.length ? (
+        <p className="helper-text">
+          Priority ingredients used: {item.priority_ingredients_used.join(", ")}
+        </p>
       ) : null}
     </article>
   );
@@ -89,27 +89,28 @@ export function RecipeGeneratorPanel({
   recipes,
   loading,
   error,
-  unavailable,
+  generationMethod,
+  priorityIngredients,
   onGenerate,
 }) {
   return (
     <SectionCard
       title="4. Recipe Suggestions"
-      subtitle="Generate demo-ready suggestions from the existing recipe catalog and current pantry overlap."
+      subtitle="Generate live suggestions from the current pantry state."
       actions={
         <button className="button" disabled={loading} onClick={onGenerate} type="button">
           {loading ? "Generating..." : "Generate Recipes"}
         </button>
       }
     >
-      {unavailable ? (
-        <InlineMessage tone="warning">
-          `/recipes/generate` is not available on this branch. This UI uses the current recipe catalog
-          and pantry overlap to simulate recipe generation for the demo.
+      {error ? <InlineMessage tone="error">{error}</InlineMessage> : null}
+
+      {generationMethod ? (
+        <InlineMessage tone="info">
+          Generated with `{generationMethod}`
+          {priorityIngredients?.length ? ` using priority items: ${priorityIngredients.join(", ")}` : "."}
         </InlineMessage>
       ) : null}
-
-      {error ? <InlineMessage tone="error">{error}</InlineMessage> : null}
 
       {!loading && recipes.length === 0 ? (
         <div className="empty-state">
@@ -119,7 +120,7 @@ export function RecipeGeneratorPanel({
 
       <div className="recipe-grid">
         {recipes.map((item) => (
-          <RecipeCard item={item} key={item.recipe.id} />
+          <RecipeCard item={item} key={`${item.title}-${item.estimated_cook_time_minutes}`} />
         ))}
       </div>
     </SectionCard>
