@@ -157,7 +157,7 @@ export function PantryDashboard({
 }) {
   return (
     <SectionCard
-      title="3. Pantry Dashboard"
+      title="4. Pantry Dashboard"
       subtitle="Expired items are removed from the active pantry automatically."
       actions={
         <div className="button-row button-row--compact">

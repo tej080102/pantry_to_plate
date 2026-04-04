@@ -123,7 +123,7 @@ export function RecipeGeneratorPanel({
 }) {
   return (
     <SectionCard
-      title="4. Recipe Suggestions"
+      title="3. Recipe Suggestions"
       subtitle="Generate live suggestions from the current pantry state."
       actions={
         <button className="button" disabled={loading} onClick={onGenerate} type="button">

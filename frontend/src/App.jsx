@@ -21,8 +21,8 @@ import { ImageUploadPanel } from "./components/upload/ImageUploadPanel";
 const WIZARD_STEPS = [
   { id: "upload", label: "Upload", title: "Add a pantry photo or sample detections." },
   { id: "review", label: "Review", title: "Confirm the ingredients you want to save." },
-  { id: "pantry", label: "Pantry", title: "Review active pantry state and make quick fixes." },
   { id: "recipes", label: "Recipes", title: "Generate recipes from the confirmed pantry." },
+  { id: "pantry", label: "Pantry", title: "Review active pantry state and make quick fixes." },
 ];
 
 function createDetectionRow(overrides = {}) {
@@ -365,7 +365,6 @@ export default function App() {
       setRecipeItems(response.recipes || []);
       setRecipeGenerationMethod(response.generation_method || "");
       setPriorityIngredients(response.priority_ingredients || []);
-      setCurrentStep(3);
     } catch (error) {
       setRecipeError(error.message || "Failed to generate recipes.");
     } finally {
@@ -424,6 +423,7 @@ export default function App() {
         );
       }
       setRecipeActionMessage(messageParts.join(" "));
+      setCurrentStep(3);
     } catch (error) {
       setRecipeError(error.message || "Failed to apply the selected recipe.");
     } finally {
@@ -440,11 +440,7 @@ export default function App() {
     setCurrentStep(index);
   }
 
-  function nextFromPantry() {
-    if (activePantryItems.length === 0) {
-      setPantryError("Add or keep at least one active pantry item before moving on.");
-      return;
-    }
+  function goToPantryWithoutRecipe() {
     setCurrentStep(3);
   }
 
@@ -546,6 +542,30 @@ export default function App() {
             </>
           ) : null}
 
+          {stepId === "recipes" ? (
+            <>
+              <RecipeGeneratorPanel
+                actionMessage={recipeActionMessage}
+                choosingRecipeTitle={busyRecipeTitle}
+                error={recipeError}
+                generationMethod={recipeGenerationMethod}
+                loading={isGeneratingRecipes}
+                onChooseRecipe={handleChooseRecipe}
+                onGenerate={handleGenerateRecipes}
+                priorityIngredients={priorityIngredients}
+                recipes={recipeItems}
+              />
+              <div className="wizard-nav">
+                <button className="button--secondary" onClick={() => goToStep(1)} type="button">
+                  Back
+                </button>
+                <button className="button" onClick={goToPantryWithoutRecipe} type="button">
+                  No Recipe Chosen
+                </button>
+              </div>
+            </>
+          ) : null}
+
           {stepId === "pantry" ? (
             <>
               <PantryDashboard
@@ -564,30 +584,6 @@ export default function App() {
                 onSave={handleSavePantryItem}
                 onToggleFalsePositive={handleToggleFalsePositive}
                 onToggleIncludeInactive={setIncludeInactive}
-              />
-              <div className="wizard-nav">
-                <button className="button--secondary" onClick={() => goToStep(1)} type="button">
-                  Back
-                </button>
-                <button className="button" onClick={nextFromPantry} type="button">
-                  Continue to Recipes
-                </button>
-              </div>
-            </>
-          ) : null}
-
-          {stepId === "recipes" ? (
-            <>
-              <RecipeGeneratorPanel
-                actionMessage={recipeActionMessage}
-                choosingRecipeTitle={busyRecipeTitle}
-                error={recipeError}
-                generationMethod={recipeGenerationMethod}
-                loading={isGeneratingRecipes}
-                onChooseRecipe={handleChooseRecipe}
-                onGenerate={handleGenerateRecipes}
-                priorityIngredients={priorityIngredients}
-                recipes={recipeItems}
               />
               <div className="wizard-nav">
                 <button className="button--secondary" onClick={() => goToStep(2)} type="button">
