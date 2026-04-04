@@ -4,6 +4,7 @@ import json
 import logging
 from typing import Any
 
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, joinedload
 
 from app.core.config import settings
@@ -118,7 +119,14 @@ def generate_recipes(db: Session, request: RecipeGenerateRequest) -> RecipeGener
     sorted_ingredients = _sort_by_priority(request.ingredients)
 
     # DB-first: find catalog recipes that overlap with our pantry
-    candidates = _find_candidate_recipes(db, all_names, priority_names)
+    try:
+        candidates = _find_candidate_recipes(db, all_names, priority_names)
+    except SQLAlchemyError:
+        logger.warning(
+            "Recipe catalog lookup failed; continuing without DB candidates.",
+            exc_info=True,
+        )
+        candidates = []
 
     # Try Gemini; fall back to DB-derived output on any failure
     try:
@@ -542,4 +550,3 @@ def _format_reference_recipes(candidates: list[tuple[Recipe, float]]) -> str:
             f"  Ingredients: {', '.join(ingredient_names) or 'none'}"
         )
     return "\n\n".join(parts)
-
