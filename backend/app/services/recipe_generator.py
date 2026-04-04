@@ -468,3 +468,63 @@ def _minimal_pantry_recipe(
         priority_ingredients_used=priority_used,
         pantry_coverage_percent=0.0,  # recomputed by caller
     )
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+
+def _compute_coverage(
+    ingredients: list[GeneratedRecipeIngredient],
+    pantry_name_set: set[str],
+) -> float:
+    """Percentage of recipe ingredients that are in the pantry."""
+    if not ingredients:
+        return 0.0
+    matched = sum(
+        1
+        for ing in ingredients
+        if any(_fuzzy_match(ing.name.lower(), p) for p in pantry_name_set)
+    )
+    return round((matched / len(ingredients)) * 100, 1)
+
+
+def _format_priority_list(ingredients: list[IngredientInput]) -> str:
+    priority = [i for i in ingredients if i.priority in _PRIORITY_BUCKETS]
+    if not priority:
+        return "(none — treat all ingredients equally)"
+    lines = []
+    for i in priority:
+        expiry = (
+            f"expires in {i.days_until_expiry} day(s)"
+            if i.days_until_expiry is not None
+            else "expiry unknown"
+        )
+        lines.append(f"- {i.name} [{i.priority}] ({expiry})")
+    return "\n".join(lines)
+
+
+def _format_all_list(ingredients: list[IngredientInput]) -> str:
+    lines = []
+    for i in ingredients:
+        qty = f"{i.quantity} {i.unit or ''}".strip() if i.quantity else "unknown qty"
+        lines.append(f"- {i.name} ({qty})")
+    return "\n".join(lines)
+
+
+def _format_reference_recipes(candidates: list[tuple[Recipe, float]]) -> str:
+    if not candidates:
+        return "(no matching catalog recipes found)"
+    parts = []
+    for recipe, score in candidates:
+        ingredient_names = [
+            ri.ingredient.name
+            for ri in recipe.recipe_ingredients
+            if ri.ingredient is not None
+        ]
+        parts.append(
+            f"  Title: {recipe.title} (overlap score: {score:.2f})\n"
+            f"  Ingredients: {', '.join(ingredient_names) or 'none'}"
+        )
+    return "\n\n".join(parts)
