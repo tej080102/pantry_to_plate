@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from typing import Any
 
 from sqlalchemy.exc import SQLAlchemyError
@@ -25,6 +26,8 @@ _DEFAULT_RECIPE_MODEL = "gemini-2.5-flash"
 
 # Priority buckets that count as "expiring soon"
 _PRIORITY_BUCKETS = {"HIGH", "MEDIUM"}
+_STEP_PREFIX_RE = re.compile(r"^\s*(?:step\s*)?\d+[\.\):\-]\s*", re.IGNORECASE)
+_BULLET_PREFIX_RE = re.compile(r"^\s*[-*]\s*")
 
 # ---------------------------------------------------------------------------
 # Gemini prompt + JSON schema
@@ -356,7 +359,7 @@ def _coerce_gemini_recipes(payload: Any) -> list[GeneratedRecipe]:
                         item.get("estimated_cook_time_minutes", 30)
                     ),
                     ingredients=ingredients,
-                    steps=[str(s) for s in (item.get("steps") or [])],
+                    steps=_normalize_instruction_steps(item.get("steps") or []),
                     priority_ingredients_used=[
                         str(p) for p in (item.get("priority_ingredients_used") or [])
                     ],
@@ -420,11 +423,9 @@ def _generate_from_db_candidates(
 
         # Parse instructions into numbered steps
         raw_instructions = recipe.instructions or ""
-        steps = [
-            line.strip()
-            for line in raw_instructions.splitlines()
-            if line.strip()
-        ] or ["Combine all ingredients and cook until done."]
+        steps = _normalize_instruction_steps(raw_instructions.splitlines()) or [
+            "Combine all ingredients and cook until done."
+        ]
 
         results.append(
             GeneratedRecipe(
@@ -510,6 +511,32 @@ def _compute_coverage(
         if any(_fuzzy_match(ing.name.lower(), p) for p in pantry_name_set)
     )
     return round((matched / len(ingredients)) * 100, 1)
+
+
+def _normalize_instruction_steps(raw_steps: list[Any]) -> list[str]:
+    steps: list[str] = []
+    for raw_step in raw_steps:
+        if raw_step is None:
+            continue
+        normalized = _strip_step_prefixes(str(raw_step).strip())
+        if normalized:
+            steps.append(normalized)
+    return steps
+
+
+def _strip_step_prefixes(step: str) -> str:
+    normalized = step.strip()
+    while normalized:
+        stripped = _STEP_PREFIX_RE.sub("", normalized, count=1)
+        if stripped != normalized:
+            normalized = stripped.strip()
+            continue
+        stripped = _BULLET_PREFIX_RE.sub("", normalized, count=1)
+        if stripped != normalized:
+            normalized = stripped.strip()
+            continue
+        break
+    return normalized
 
 
 def _format_priority_list(ingredients: list[IngredientInput]) -> str:

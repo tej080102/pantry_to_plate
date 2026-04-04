@@ -14,6 +14,42 @@ from app.services import recipe_generator
 
 
 class RecipeGeneratorTestCase(unittest.TestCase):
+    def test_coerce_gemini_recipes_strips_redundant_step_numbering(self) -> None:
+        recipes = recipe_generator._coerce_gemini_recipes(
+            [
+                {
+                    "title": "Cheese Toast",
+                    "description": "Simple toast.",
+                    "servings": 2,
+                    "estimated_cook_time_minutes": 10,
+                    "ingredients": [
+                        {
+                            "name": "Bread",
+                            "quantity": "2 slices",
+                            "is_priority": False,
+                            "available_in_pantry": True,
+                        }
+                    ],
+                    "steps": [
+                        "1. 1. Lightly oil one side of each bread slice.",
+                        "Step 2: Toast until golden.",
+                        "- Serve warm.",
+                    ],
+                    "priority_ingredients_used": [],
+                    "pantry_coverage_percent": 100,
+                }
+            ]
+        )
+
+        self.assertEqual(
+            recipes[0].steps,
+            [
+                "Lightly oil one side of each bread slice.",
+                "Toast until golden.",
+                "Serve warm.",
+            ],
+        )
+
     def test_generate_recipes_falls_back_when_catalog_lookup_fails(self) -> None:
         payload = RecipeGenerateRequest(
             ingredients=[
