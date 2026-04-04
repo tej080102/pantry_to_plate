@@ -79,6 +79,91 @@ def _resolve_shelf_life_days(ingredient: Ingredient) -> int | None:
     return CATEGORY_SHELF_LIFE_DEFAULTS.get(_normalize_name(ingredient.category))
 
 
+def _normalize_unit(value: str | None) -> str | None:
+    if value is None:
+        return None
+    normalized = value.strip().lower()
+    return normalized or None
+
+
+def _find_existing_pantry_item(
+    db: Session,
+    user_id: str,
+    ingredient_id: int,
+) -> PantryItem | None:
+    """Return the most relevant current pantry row for one user and ingredient."""
+    return (
+        db.query(PantryItem)
+        .filter(
+            PantryItem.user_id == user_id,
+            PantryItem.ingredient_id == ingredient_id,
+        )
+        .order_by(
+            PantryItem.is_archived.asc(),
+            PantryItem.is_false_positive.asc(),
+            PantryItem.created_at.desc(),
+            PantryItem.id.desc(),
+        )
+        .first()
+    )
+
+
+def _merge_detected_quantity(existing_item: PantryItem, detection: DetectedIngredientInput) -> None:
+    """Merge new detection quantity into pantry state without creating duplicates."""
+    if detection.quantity is None:
+        return
+
+    existing_unit = _normalize_unit(existing_item.unit)
+    detected_unit = _normalize_unit(detection.unit)
+    if existing_item.quantity is not None and existing_unit == detected_unit:
+        existing_item.quantity += detection.quantity
+        if detected_unit is not None:
+            existing_item.unit = detection.unit
+        return
+
+    existing_item.quantity = detection.quantity
+    existing_item.unit = detection.unit
+
+
+def _upsert_pantry_item_from_detection(
+    db: Session,
+    *,
+    user_id: str,
+    ingredient: Ingredient,
+    detection: DetectedIngredientInput,
+    item_date_added: date,
+    expiry_date: date | None,
+    bucket: str,
+) -> None:
+    """Insert a new pantry row or refresh an existing one for the same ingredient."""
+    pantry_item = _find_existing_pantry_item(db, user_id, ingredient.id)
+    if pantry_item is None:
+        pantry_item = PantryItem(
+            user_id=user_id,
+            ingredient_id=ingredient.id,
+            quantity=detection.quantity,
+            unit=detection.unit,
+            detected_confidence=detection.detected_confidence,
+            source_detected_name=detection.detected_name.strip(),
+            date_added=item_date_added,
+            estimated_expiry_date=expiry_date,
+            is_priority=is_priority_bucket(bucket),
+        )
+        db.add(pantry_item)
+        return
+
+    pantry_item.is_archived = False
+    pantry_item.is_false_positive = False
+    _merge_detected_quantity(pantry_item, detection)
+    if detection.detected_confidence is not None:
+        pantry_item.detected_confidence = detection.detected_confidence
+    if detection.detected_name.strip():
+        pantry_item.source_detected_name = detection.detected_name.strip()
+    pantry_item.date_added = item_date_added
+    pantry_item.estimated_expiry_date = expiry_date
+    pantry_item.is_priority = is_priority_bucket(bucket)
+
+
 def _shape_pantry_item(item: PantryItem, priority_rank: int) -> PantryItemRead:
     bucket = priority_bucket(item.estimated_expiry_date)
     return PantryItemRead(
@@ -206,18 +291,15 @@ def ingest_pantry_items(
         expiry_date = estimate_expiry_date(item_date_added, shelf_life_days)
         bucket = priority_bucket(expiry_date)
 
-        pantry_item = PantryItem(
+        _upsert_pantry_item_from_detection(
+            db,
             user_id=payload.user_id,
-            ingredient_id=ingredient.id,
-            quantity=detection.quantity,
-            unit=detection.unit,
-            detected_confidence=detection.detected_confidence,
-            source_detected_name=detection.detected_name.strip(),
-            date_added=item_date_added,
-            estimated_expiry_date=expiry_date,
-            is_priority=is_priority_bucket(bucket),
+            ingredient=ingredient,
+            detection=detection,
+            item_date_added=item_date_added,
+            expiry_date=expiry_date,
+            bucket=bucket,
         )
-        db.add(pantry_item)
 
     db.commit()
     ranked_items = get_ranked_pantry_items(db, payload.user_id)

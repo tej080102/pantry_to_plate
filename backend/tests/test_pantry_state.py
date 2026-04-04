@@ -160,6 +160,106 @@ class PantryStateTestCase(unittest.TestCase):
                 date.today() + timedelta(days=5),
             )
 
+    def test_ingest_updates_existing_pantry_item_instead_of_creating_duplicate(self) -> None:
+        with self.session_factory() as session:
+            cheese = Ingredient(
+                name="Cheese",
+                category="Dairy",
+                standard_unit="g",
+                estimated_shelf_life_days=14,
+                storage_type="refrigerated",
+            )
+            session.add(cheese)
+            session.commit()
+
+            existing_item = PantryItem(
+                user_id="demo-user",
+                ingredient_id=cheese.id,
+                quantity=100,
+                unit="g",
+                detected_confidence=0.61,
+                source_detected_name="cheese",
+                date_added=date.today() - timedelta(days=2),
+                estimated_expiry_date=date.today() + timedelta(days=4),
+                is_priority=True,
+            )
+            session.add(existing_item)
+            session.commit()
+
+            payload = PantryIngestRequest(
+                user_id="demo-user",
+                detected_ingredients=[
+                    DetectedIngredientInput(
+                        detected_name="shredded cheese",
+                        quantity=80,
+                        unit="g",
+                        detected_confidence=0.94,
+                    )
+                ],
+            )
+
+            items, unmatched = ingest_pantry_items(session, payload)
+
+            self.assertEqual(len(unmatched), 0)
+            self.assertEqual(len(items), 1)
+            self.assertEqual(items[0].id, existing_item.id)
+            self.assertEqual(items[0].quantity, 180)
+            self.assertEqual(items[0].detected_confidence, 0.94)
+            self.assertEqual(items[0].source_detected_name, "shredded cheese")
+
+            stored_items = session.query(PantryItem).filter(PantryItem.user_id == "demo-user").all()
+            self.assertEqual(len(stored_items), 1)
+
+    def test_ingest_reactivates_archived_or_dismissed_item_when_detected_again(self) -> None:
+        with self.session_factory() as session:
+            tomato = Ingredient(
+                name="Tomato",
+                category="Vegetable",
+                standard_unit="count",
+                estimated_shelf_life_days=7,
+                storage_type="counter",
+            )
+            session.add(tomato)
+            session.commit()
+
+            archived_item = PantryItem(
+                user_id="demo-user",
+                ingredient_id=tomato.id,
+                quantity=2,
+                unit="count",
+                detected_confidence=0.5,
+                source_detected_name="old tomato",
+                date_added=date.today() - timedelta(days=8),
+                estimated_expiry_date=date.today() - timedelta(days=1),
+                is_priority=False,
+                is_archived=True,
+                is_false_positive=True,
+            )
+            session.add(archived_item)
+            session.commit()
+
+            payload = PantryIngestRequest(
+                user_id="demo-user",
+                detected_ingredients=[
+                    DetectedIngredientInput(
+                        detected_name="tomato",
+                        quantity=3,
+                        unit="count",
+                        detected_confidence=0.9,
+                    )
+                ],
+            )
+
+            items, unmatched = ingest_pantry_items(session, payload)
+
+            self.assertEqual(len(unmatched), 0)
+            self.assertEqual(len(items), 1)
+            self.assertEqual(items[0].id, archived_item.id)
+            self.assertFalse(items[0].is_archived)
+            self.assertFalse(items[0].is_false_positive)
+            self.assertEqual(items[0].quantity, 5)
+            self.assertEqual(items[0].source_detected_name, "tomato")
+
     def test_update_and_consume_pantry_item_keep_lifecycle_consistent(self) -> None:
         with self.session_factory() as session:
             ingredient = Ingredient(

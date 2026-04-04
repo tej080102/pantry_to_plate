@@ -225,6 +225,34 @@ img {
   margin-top: 1rem;
 }
 
+.chip-group,
+.quick-action-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.quick-add-bar {
+  display: grid;
+  gap: 0.7rem;
+  margin-top: 1rem;
+}
+
+.chip-button {
+  border: 1px solid rgba(93, 107, 45, 0.18);
+  border-radius: 999px;
+  padding: 0.45rem 0.8rem;
+  background: rgba(93, 107, 45, 0.08);
+  color: var(--olive-dark);
+  font-weight: 700;
+}
+
+.chip-button--selected {
+  background: linear-gradient(135deg, var(--olive), #728436);
+  border-color: transparent;
+  color: white;
+}
+
 .button-row--compact {
   justify-content: flex-end;
 }

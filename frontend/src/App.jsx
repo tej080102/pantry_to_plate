@@ -186,8 +186,8 @@ export default function App() {
     );
   }
 
-  function handleAddDetectionRow() {
-    setDetectionRows((current) => [...current, createDetectionRow()]);
+  function handleAddDetectionRow(overrides = {}) {
+    setDetectionRows((current) => [...current, createDetectionRow(overrides)]);
   }
 
   function handleRemoveDetectionRow(rowId) {
@@ -382,8 +382,7 @@ export default function App() {
           <p className="eyebrow">Pantry to Plate</p>
           <h1>AI-powered pantry state and recipe demo</h1>
           <p className="hero__copy">
-            Upload a pantry photo when the backend supports detection, review ingredients, build
-            pantry state, and explore spoilage-driven recipe suggestions from the live catalog.
+            Scan, confirm, and cook from what is already in your pantry.
           </p>
         </div>
 
@@ -455,8 +454,8 @@ export default function App() {
 
         <aside className="side-column">
           <SectionCard
-            title="Demo Diagnostics"
-            subtitle="Compact visibility into unmatched detections and inactive pantry items."
+            title="Debug View"
+            subtitle="Unmatched detections and inactive pantry items."
           >
             {unmatchedItems.length ? (
               <div className="debug-block">
@@ -498,18 +497,18 @@ export default function App() {
           </SectionCard>
 
           <SectionCard
-            title="How This Branch Works"
-            subtitle="Real backend integration, with safe fallbacks where APIs are not implemented yet."
+            title="Route Status"
+            subtitle="Current backend connections."
           >
             <ul className="bullet-list">
               <li>`/ingredients` is used for canonical ingredient suggestions.</li>
               <li>`/pantry/*` powers ingest, retrieval, update, consume, dismiss, and archive flows.</li>
               <li>`/recipes/generate` turns the live pantry state into recipe suggestions.</li>
-              <li>`/perception/detect` is attempted first; if Gemini detection fails, the UI falls back to manual/sample detections.</li>
+              <li>`/perception/detect` is attempted first, then the UI falls back to manual or sample detections.</li>
             </ul>
 
             <InlineMessage tone="info">
-              The frontend stays usable even when perception is temporarily unavailable.
+              If image detection is unavailable, you can still complete the full demo with click-to-add matching.
             </InlineMessage>
           </SectionCard>
         </aside>

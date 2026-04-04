@@ -255,6 +255,13 @@ def detect_ingredients_from_upload(
     """Validate an uploaded image and infer likely pantry ingredients."""
     _validate_upload(filename=filename, content_type=content_type, payload=payload)
     image, image_format = _open_image(payload)
+    logger.info(
+        "Perception request received: filename=%s bytes=%s format=%s provider=%s",
+        filename,
+        len(payload),
+        image_format,
+        settings.VISION_PROVIDER,
+    )
     resolved_content_type = _resolve_content_type(
         content_type=content_type,
         image_format=image_format,
@@ -286,16 +293,32 @@ def _detect_ingredients(
     content_type: str,
 ) -> list[DetectedIngredientRead]:
     provider = settings.VISION_PROVIDER.strip().lower()
+    logger.info("Perception provider selected: provider=%s", provider)
     if provider in {"local", "local_heuristic", "heuristic"}:
-        return _detect_with_local_palette(image)
+        detections = _detect_with_local_palette(image)
+        logger.info(
+            "Perception completed with local heuristic: detections=%s model=%s",
+            len(detections),
+            LOCAL_VISION_MODEL_NAME,
+        )
+        return detections
 
     if provider in {"gemini", "gemini_vertex", "vertex_ai_gemini", "vertex"}:
         try:
-            return _detect_with_gemini_vertex(
+            detections = _detect_with_gemini_vertex(
                 payload=payload,
                 content_type=content_type,
             )
+            source_model = detections[0].source_model if detections else settings.VISION_MODEL
+            logger.info(
+                "Perception completed with Gemini: detections=%s model=%s fallback_used=%s",
+                len(detections),
+                source_model,
+                False,
+            )
+            return detections
         except PerceptionProviderError:
+            logger.exception("Gemini perception failed")
             if not settings.PERCEPTION_ALLOW_LOCAL_FALLBACK:
                 raise
 
@@ -303,7 +326,14 @@ def _detect_ingredients(
                 "Vertex AI Gemini perception failed; falling back to local heuristic provider.",
                 exc_info=True,
             )
-            return _detect_with_local_palette(image)
+            detections = _detect_with_local_palette(image)
+            logger.info(
+                "Perception completed with local fallback: detections=%s model=%s fallback_used=%s",
+                len(detections),
+                LOCAL_VISION_MODEL_NAME,
+                True,
+            )
+            return detections
 
     raise ValueError(
         f"Unsupported VISION_PROVIDER '{settings.VISION_PROVIDER}'. "
@@ -317,6 +347,12 @@ def _detect_with_gemini_vertex(
     content_type: str,
 ) -> list[DetectedIngredientRead]:
     provider_mode = "Vertex AI" if settings.GOOGLE_GENAI_USE_VERTEXAI else "Gemini API"
+    logger.info(
+        "Initializing Gemini perception client: mode=%s model=%s vertexai=%s",
+        provider_mode,
+        settings.VISION_MODEL,
+        settings.GOOGLE_GENAI_USE_VERTEXAI,
+    )
     try:
         from google import genai
         from google.genai import types
@@ -363,6 +399,7 @@ def _detect_with_gemini_vertex(
                 "response_schema": GEMINI_DETECTIONS_JSON_SCHEMA,
             },
         )
+        logger.info("Gemini perception response received from model=%s", settings.VISION_MODEL)
     except Exception as exc:
         raise PerceptionProviderError(
             "Gemini perception request failed. Verify the active credentials, "
@@ -381,7 +418,9 @@ def _detect_with_gemini_vertex(
                 "Gemini perception returned non-JSON content for structured output."
             ) from exc
 
-    return _coerce_gemini_detections(parsed)
+    detections = _coerce_gemini_detections(parsed)
+    logger.info("Gemini perception parsed successfully: detections=%s", len(detections))
+    return detections
 
 
 def _coerce_gemini_detections(payload: Any) -> list[DetectedIngredientRead]:

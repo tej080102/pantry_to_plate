@@ -95,6 +95,19 @@ function PantryItemCard({
               value={consumeAmount}
             />
           </label>
+          <div className="quick-action-group">
+            {[1, 2, 5].map((amount) => (
+              <button
+                className="chip-button"
+                disabled={isBusy}
+                key={`${item.id}-${amount}`}
+                onClick={() => onConsumeChange(item.id, String(amount))}
+                type="button"
+              >
+                {amount}
+              </button>
+            ))}
+          </div>
           <button
             className="button button--secondary"
             disabled={isBusy || !consumeAmount}
@@ -146,7 +159,7 @@ export function PantryDashboard({
   return (
     <SectionCard
       title="3. Pantry Dashboard"
-      subtitle="Inspect active pantry state, update item quantities, archive expired items, and manage false positives."
+      subtitle="Keep active pantry items fresh and clean."
       actions={
         <div className="button-row button-row--compact">
           <label className="checkbox">
@@ -171,7 +184,7 @@ export function PantryDashboard({
 
       {!loading && items.length === 0 ? (
         <div className="empty-state">
-          No pantry items yet. Confirm detections above to build pantry state.
+          No pantry items yet.
         </div>
       ) : null}
 

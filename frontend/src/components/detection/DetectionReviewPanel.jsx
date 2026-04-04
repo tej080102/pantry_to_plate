@@ -23,10 +23,24 @@ export function DetectionReviewPanel({
   onRemoveRow,
   onSubmit,
 }) {
+  const quickAddIngredients = ingredients.slice(0, 10);
+
+  function suggestionOptions(row) {
+    const query = (row.corrected_name || row.detected_name || "").trim().toLowerCase();
+    if (!query) {
+      return quickAddIngredients.slice(0, 6);
+    }
+
+    const exactish = ingredients.filter((ingredient) =>
+      ingredient.name.toLowerCase().includes(query),
+    );
+    return (exactish.length ? exactish : quickAddIngredients).slice(0, 6);
+  }
+
   return (
     <SectionCard
       title="2. Review Detections"
-      subtitle="Adjust detected names, add canonical corrections, and ingest them into pantry state."
+      subtitle="Tap a match, adjust if needed, then save to pantry."
       actions={
         <button className="button button--ghost" onClick={onAddRow} type="button">
           Add Ingredient
@@ -35,7 +49,7 @@ export function DetectionReviewPanel({
     >
       {rows.length === 0 ? (
         <div className="empty-state">
-          No detections yet. Upload a photo, load sample detections, or add ingredients manually.
+          Start with a photo, sample detections, or a quick add below.
         </div>
       ) : (
         <div className="detection-grid">
@@ -70,6 +84,23 @@ export function DetectionReviewPanel({
                   value={row.corrected_name}
                 />
               </label>
+
+              <div className="chip-group">
+                {suggestionOptions(row).map((ingredient) => (
+                  <button
+                    className={
+                      row.corrected_name === ingredient.name
+                        ? "chip-button chip-button--selected"
+                        : "chip-button"
+                    }
+                    key={`${row.id}-${ingredient.id}`}
+                    onClick={() => onChangeRow(row.id, "corrected_name", ingredient.name)}
+                    type="button"
+                  >
+                    {ingredient.name}
+                  </button>
+                ))}
+              </div>
 
               <div className="field-row">
                 <label>
@@ -113,6 +144,28 @@ export function DetectionReviewPanel({
         </div>
       )}
 
+      <div className="quick-add-bar">
+        <span className="helper-text">Quick add</span>
+        <div className="chip-group">
+          {quickAddIngredients.map((ingredient) => (
+            <button
+              className="chip-button"
+              key={`quick-${ingredient.id}`}
+              onClick={() =>
+                onAddRow({
+                  detected_name: ingredient.name.toLowerCase(),
+                  corrected_name: ingredient.name,
+                  unit: ingredient.standard_unit || "",
+                })
+              }
+              type="button"
+            >
+              {ingredient.name}
+            </button>
+          ))}
+        </div>
+      </div>
+
       <datalist id="ingredient-options">
         {ingredients.map((ingredient) => (
           <option key={ingredient.id} value={ingredient.name} />
@@ -134,8 +187,7 @@ export function DetectionReviewPanel({
 
       {ingestResult?.unmatched_detected_ingredients?.length ? (
         <InlineMessage tone="warning">
-          Some detections could not be matched to canonical ingredients. They are shown in the
-          debug panel below.
+          Some detections still need manual matching.
         </InlineMessage>
       ) : null}
     </SectionCard>

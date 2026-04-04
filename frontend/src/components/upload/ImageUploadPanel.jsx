@@ -14,7 +14,7 @@ export function ImageUploadPanel({
   return (
     <SectionCard
       title="1. Upload Pantry Photo"
-      subtitle="Upload a pantry or fridge image. If Gemini detection is unavailable, you can continue with sample or manual detections."
+      subtitle="Upload a photo or jump straight to sample detections."
       actions={
         <button className="button button--secondary" onClick={onLoadSample} type="button">
           Load Sample Detections
@@ -61,8 +61,7 @@ export function ImageUploadPanel({
 
       {fallbackMode ? (
         <InlineMessage tone="warning">
-          The backend perception step is unavailable right now. Continue with manual review below
-          or use the sample detections button.
+          Image detection is unavailable right now. Use sample detections or add items manually.
         </InlineMessage>
       ) : null}
 
