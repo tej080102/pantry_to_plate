@@ -11,17 +11,16 @@ import {
 } from "./api/pantry";
 import { generateRecipes } from "./api/recipes";
 import { ApiError } from "./api/client";
-import { SectionCard } from "./components/common/SectionCard";
 import { DetectionReviewPanel } from "./components/detection/DetectionReviewPanel";
 import { PantryDashboard } from "./components/pantry/PantryDashboard";
 import { RecipeGeneratorPanel } from "./components/recipes/RecipeGeneratorPanel";
 import { ImageUploadPanel } from "./components/upload/ImageUploadPanel";
 
 const WIZARD_STEPS = [
-  { id: "upload", label: "Upload", title: "Add a pantry photo or sample detections." },
-  { id: "review", label: "Review", title: "Confirm the ingredients you want to save." },
-  { id: "recipes", label: "Recipes", title: "Generate recipes from the confirmed pantry." },
-  { id: "pantry", label: "Pantry", title: "Review active pantry state and make quick fixes." },
+  { id: "upload", label: "Upload", title: "Scan a pantry photo or load sample detections." },
+  { id: "review", label: "Review", title: "Match ingredients, set quantities, and save them." },
+  { id: "recipes", label: "Recipes", title: "Generate suggestions, then choose one or skip." },
+  { id: "pantry", label: "Pantry", title: "Update pantry quantity, unit, and expiry details." },
 ];
 
 function createDetectionRow(overrides = {}) {
@@ -407,9 +406,6 @@ export default function App() {
     }
   }
 
-  const activePantryItems = pantryItems.filter(
-    (item) => !item.is_archived && !item.is_false_positive,
-  );
   const stepId = WIZARD_STEPS[currentStep].id;
 
   function goToStep(index) {
@@ -454,23 +450,6 @@ export default function App() {
               );
             })}
           </div>
-
-          <SectionCard title="Progress" subtitle="One screen at a time.">
-            <div className="wizard-summary">
-              <div>
-                <strong>{detectionRows.length}</strong>
-                <span>detections ready</span>
-              </div>
-              <div>
-                <strong>{activePantryItems.length}</strong>
-                <span>active pantry items</span>
-              </div>
-              <div>
-                <strong>{recipeItems.length}</strong>
-                <span>recipe results</span>
-              </div>
-            </div>
-          </SectionCard>
         </section>
 
         <section className="wizard-screen">
