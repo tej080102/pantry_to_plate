@@ -3,7 +3,6 @@ import { useEffect, useState } from "react";
 import { detectIngredientsFromImage } from "./api/detection";
 import { fetchIngredients } from "./api/ingredients";
 import {
-  archiveExpiredPantry,
   consumePantryItem,
   deletePantryItem,
   fetchPantryItems,
@@ -323,19 +322,6 @@ export default function App() {
     );
   }
 
-  async function handleArchiveExpired() {
-    setPantryError("");
-    try {
-      const result = await archiveExpiredPantry(userId);
-      await loadPantry();
-      if (!result.archived_count) {
-        setPantryError("No expired pantry items needed archiving.");
-      }
-    } catch (error) {
-      setPantryError(error.message || "Failed to archive expired items.");
-    }
-  }
-
   async function handleGenerateRecipes() {
     const activePantryItems = pantryItems.filter(
       (item) => !item.is_archived && !item.is_false_positive,
@@ -508,7 +494,6 @@ export default function App() {
                 includeInactive={includeInactive}
                 items={pantryItems}
                 loading={isLoadingPantry}
-                onArchiveExpired={handleArchiveExpired}
                 onConsume={handleConsumePantryItem}
                 onConsumeChange={handleConsumeChange}
                 onDelete={handleDeletePantryItem}

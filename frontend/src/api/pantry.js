@@ -34,10 +34,3 @@ export function consumePantryItem(id, amount) {
     body: { amount },
   });
 }
-
-export function archiveExpiredPantry(userId) {
-  const params = new URLSearchParams({ user_id: userId });
-  return apiRequest(`/pantry/archive-expired?${params.toString()}`, {
-    method: "POST",
-  });
-}

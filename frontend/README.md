@@ -32,7 +32,6 @@ You can provide it in your shell before starting Vite, or through a local Vite e
 - `PATCH /pantry/{id}`
 - `DELETE /pantry/{id}`
 - `POST /pantry/{id}/consume`
-- `POST /pantry/archive-expired`
 - `GET /recipes`
 - `GET /recipes/{id}`
 

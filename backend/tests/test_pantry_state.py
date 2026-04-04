@@ -342,6 +342,57 @@ class PantryStateTestCase(unittest.TestCase):
             self.assertTrue(delete_pantry_item(session, pantry_item.id))
             self.assertEqual(len(get_ranked_pantry_items(session, "demo-user")), 0)
 
+    def test_get_ranked_pantry_items_auto_archives_expired_rows(self) -> None:
+        with self.session_factory() as session:
+            ingredient = Ingredient(
+                name="Lettuce",
+                category="Vegetable",
+                standard_unit="head",
+                estimated_shelf_life_days=5,
+                storage_type="refrigerated",
+            )
+            session.add(ingredient)
+            session.commit()
+
+            expired_item = PantryItem(
+                user_id="demo-user",
+                ingredient_id=ingredient.id,
+                quantity=1,
+                unit="head",
+                detected_confidence=0.81,
+                source_detected_name="lettuce",
+                date_added=date.today() - timedelta(days=7),
+                estimated_expiry_date=date.today() - timedelta(days=1),
+                is_priority=True,
+            )
+            active_item = PantryItem(
+                user_id="demo-user",
+                ingredient_id=ingredient.id,
+                quantity=2,
+                unit="head",
+                detected_confidence=0.94,
+                source_detected_name="romaine lettuce",
+                date_added=date.today(),
+                estimated_expiry_date=date.today() + timedelta(days=3),
+                is_priority=True,
+            )
+            session.add_all([expired_item, active_item])
+            session.commit()
+
+            active_items = get_ranked_pantry_items(session, "demo-user")
+            self.assertEqual(len(active_items), 1)
+            self.assertEqual(active_items[0].id, active_item.id)
+
+            all_items = get_ranked_pantry_items(
+                session,
+                "demo-user",
+                include_inactive=True,
+            )
+            archived_item = next(item for item in all_items if item.id == expired_item.id)
+            self.assertEqual(archived_item.id, expired_item.id)
+            self.assertTrue(archived_item.is_archived)
+            self.assertFalse(archived_item.is_priority)
+
     def test_archive_expired_items_excludes_them_from_active_pantry(self) -> None:
         with self.session_factory() as session:
             ingredient = Ingredient(

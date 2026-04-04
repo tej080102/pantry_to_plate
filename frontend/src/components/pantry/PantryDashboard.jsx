@@ -142,7 +142,6 @@ export function PantryDashboard({
   items,
   includeInactive,
   onToggleIncludeInactive,
-  onArchiveExpired,
   onRefresh,
   onEditChange,
   onConsumeChange,
@@ -159,7 +158,7 @@ export function PantryDashboard({
   return (
     <SectionCard
       title="3. Pantry Dashboard"
-      subtitle="Keep active pantry items fresh and clean."
+      subtitle="Expired items are removed from the active pantry automatically."
       actions={
         <div className="button-row button-row--compact">
           <label className="checkbox">
@@ -172,9 +171,6 @@ export function PantryDashboard({
           </label>
           <button className="button button--secondary" onClick={onRefresh} type="button">
             Refresh
-          </button>
-          <button className="button" onClick={onArchiveExpired} type="button">
-            Archive Expired
           </button>
         </div>
       }

@@ -215,12 +215,41 @@ def _sync_priority_flags(db: Session, pantry_items: list[PantryItem]) -> None:
             db.refresh(item)
 
 
+def _archive_expired_pantry_item_ids(db: Session, user_id: str) -> list[int]:
+    """Archive expired active pantry items so stale rows drop out automatically."""
+    today = date.today()
+    pantry_items = (
+        db.query(PantryItem)
+        .filter(
+            PantryItem.user_id == user_id,
+            PantryItem.is_archived.is_(False),
+            PantryItem.is_false_positive.is_(False),
+            PantryItem.estimated_expiry_date.is_not(None),
+            PantryItem.estimated_expiry_date < today,
+        )
+        .all()
+    )
+
+    archived_item_ids: list[int] = []
+    for item in pantry_items:
+        item.is_archived = True
+        item.is_priority = False
+        archived_item_ids.append(item.id)
+
+    if archived_item_ids:
+        db.commit()
+
+    return archived_item_ids
+
+
 def get_ranked_pantry_items(
     db: Session,
     user_id: str,
     include_inactive: bool = False,
 ) -> list[PantryItemRead]:
     """Return one user's pantry ordered by expiry and FIFO tie-breakers."""
+    _archive_expired_pantry_item_ids(db, user_id)
+
     query = (
         db.query(PantryItem)
         .options(joinedload(PantryItem.ingredient))
@@ -376,27 +405,7 @@ def consume_pantry_item(
 
 def archive_expired_pantry_items(db: Session, user_id: str) -> PantryArchiveExpiredResponse:
     """Archive expired pantry items so active pantry views stay focused on usable items."""
-    today = date.today()
-    pantry_items = (
-        db.query(PantryItem)
-        .filter(
-            PantryItem.user_id == user_id,
-            PantryItem.is_archived.is_(False),
-            PantryItem.is_false_positive.is_(False),
-            PantryItem.estimated_expiry_date.is_not(None),
-            PantryItem.estimated_expiry_date < today,
-        )
-        .all()
-    )
-
-    archived_item_ids: list[int] = []
-    for item in pantry_items:
-        item.is_archived = True
-        item.is_priority = False
-        archived_item_ids.append(item.id)
-
-    if archived_item_ids:
-        db.commit()
+    archived_item_ids = _archive_expired_pantry_item_ids(db, user_id)
 
     return PantryArchiveExpiredResponse(
         archived_count=len(archived_item_ids),
