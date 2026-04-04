@@ -240,3 +240,231 @@ def _fuzzy_match(recipe_name: str, pantry_name: str) -> bool:
     """True when either string is a substring of the other."""
     return recipe_name in pantry_name or pantry_name in recipe_name
 
+
+
+# ---------------------------------------------------------------------------
+# Step 3a — Gemini generation
+# ---------------------------------------------------------------------------
+
+
+def _generate_with_gemini(
+    *,
+    sorted_ingredients: list[IngredientInput],
+    priority_names: list[str],
+    candidates: list[tuple[Recipe, float]],
+    max_recipes: int,
+    servings: int,
+) -> list[GeneratedRecipe]:
+    try:
+        from google import genai
+        from google.genai import types
+    except ImportError as exc:
+        raise RuntimeError(
+            "Recipe generation with Gemini requires the 'google-genai' package."
+        ) from exc
+
+    if settings.GOOGLE_GENAI_USE_VERTEXAI and not settings.GCP_PROJECT_ID:
+        raise RuntimeError(
+            "GCP_PROJECT_ID must be set when using Vertex AI for recipe generation."
+        )
+
+    model = settings.RECIPE_MODEL or _DEFAULT_RECIPE_MODEL
+
+    prompt = _PROMPT_TEMPLATE.format(
+        priority_list=_format_priority_list(sorted_ingredients),
+        all_list=_format_all_list(sorted_ingredients),
+        reference_recipes=_format_reference_recipes(candidates),
+        max_recipes=max_recipes,
+        servings=servings,
+    )
+
+    client = genai.Client(
+        vertexai=settings.GOOGLE_GENAI_USE_VERTEXAI,
+        project=settings.GCP_PROJECT_ID,
+        location=settings.GCP_REGION,
+        http_options=types.HttpOptions(api_version="v1"),
+    )
+
+    response = client.models.generate_content(
+        model=model,
+        contents=[prompt],
+        config={
+            "temperature": 0.4,
+            "response_mime_type": "application/json",
+            "response_schema": _GEMINI_RECIPE_JSON_SCHEMA,
+        },
+    )
+
+    parsed = getattr(response, "parsed", None)
+    if parsed is None:
+        text = getattr(response, "text", "") or ""
+        if not text:
+            raise RuntimeError("Gemini returned an empty response for recipe generation.")
+        parsed = json.loads(text)
+
+    return _coerce_gemini_recipes(parsed)
+
+
+def _coerce_gemini_recipes(payload: Any) -> list[GeneratedRecipe]:
+    if not isinstance(payload, list):
+        raise RuntimeError("Gemini returned an unexpected shape for recipe generation.")
+
+    recipes: list[GeneratedRecipe] = []
+    for item in payload:
+        if not isinstance(item, dict):
+            continue
+        try:
+            raw_ingredients = item.get("ingredients") or []
+            ingredients = [
+                GeneratedRecipeIngredient(
+                    name=str(ri.get("name", "")).strip(),
+                    quantity=str(ri.get("quantity", "")) or None,
+                    is_priority=bool(ri.get("is_priority", False)),
+                    available_in_pantry=bool(ri.get("available_in_pantry", False)),
+                )
+                for ri in raw_ingredients
+                if isinstance(ri, dict) and ri.get("name")
+            ]
+            recipes.append(
+                GeneratedRecipe(
+                    title=str(item.get("title", "Untitled Recipe")).strip(),
+                    description=str(item.get("description", "")).strip(),
+                    servings=int(item.get("servings", 2)),
+                    estimated_cook_time_minutes=int(
+                        item.get("estimated_cook_time_minutes", 30)
+                    ),
+                    ingredients=ingredients,
+                    steps=[str(s) for s in (item.get("steps") or [])],
+                    priority_ingredients_used=[
+                        str(p) for p in (item.get("priority_ingredients_used") or [])
+                    ],
+                    pantry_coverage_percent=float(
+                        item.get("pantry_coverage_percent", 0.0)
+                    ),
+                )
+            )
+        except (TypeError, ValueError):
+            logger.warning("Skipping malformed recipe item from Gemini: %s", item)
+            continue
+
+    return recipes
+
+
+# ---------------------------------------------------------------------------
+# Step 3b — DB-derived fallback
+# ---------------------------------------------------------------------------
+
+
+def _generate_from_db_candidates(
+    *,
+    candidates: list[tuple[Recipe, float]],
+    sorted_ingredients: list[IngredientInput],
+    priority_names: list[str],
+    max_recipes: int,
+    servings: int,
+) -> list[GeneratedRecipe]:
+    """Convert top DB catalog recipes into the GeneratedRecipe shape."""
+    pantry_lower = {i.name.lower() for i in sorted_ingredients}
+    priority_lower = {n.lower() for n in priority_names}
+    results: list[GeneratedRecipe] = []
+
+    for recipe, _score in candidates[:max_recipes]:
+        ingredients: list[GeneratedRecipeIngredient] = []
+        priority_used: list[str] = []
+
+        for ri in recipe.recipe_ingredients:
+            if ri.ingredient is None:
+                continue
+            name = ri.ingredient.name
+            name_lower = name.lower()
+
+            in_pantry = any(_fuzzy_match(name_lower, p) for p in pantry_lower)
+            is_priority = any(_fuzzy_match(name_lower, p) for p in priority_lower)
+
+            qty_str = None
+            if ri.quantity is not None:
+                qty_str = f"{ri.quantity} {ri.unit or ''}".strip()
+
+            ingredients.append(
+                GeneratedRecipeIngredient(
+                    name=name,
+                    quantity=qty_str,
+                    is_priority=is_priority,
+                    available_in_pantry=in_pantry,
+                )
+            )
+            if is_priority:
+                priority_used.append(name)
+
+        # Parse instructions into numbered steps
+        raw_instructions = recipe.instructions or ""
+        steps = [
+            line.strip()
+            for line in raw_instructions.splitlines()
+            if line.strip()
+        ] or ["Combine all ingredients and cook until done."]
+
+        results.append(
+            GeneratedRecipe(
+                title=recipe.title,
+                description=f"A recipe using your available pantry ingredients.",
+                servings=recipe.servings or servings,
+                estimated_cook_time_minutes=recipe.estimated_cook_time_minutes or 30,
+                ingredients=ingredients,
+                steps=steps,
+                priority_ingredients_used=priority_used,
+                pantry_coverage_percent=0.0,  # recomputed by caller
+            )
+        )
+
+    # If the DB has nothing at all, build a minimal recipe from pantry items
+    if not results:
+        results.append(_minimal_pantry_recipe(sorted_ingredients, priority_names, servings))
+
+    return results
+
+
+def _minimal_pantry_recipe(
+    sorted_ingredients: list[IngredientInput],
+    priority_names: list[str],
+    servings: int,
+) -> GeneratedRecipe:
+    """Last-resort recipe built entirely from the pantry list."""
+    priority_lower = {n.lower() for n in priority_names}
+    ingredients: list[GeneratedRecipeIngredient] = []
+    priority_used: list[str] = []
+
+    for item in sorted_ingredients:
+        is_priority = item.name.lower() in priority_lower
+        qty_str = f"{item.quantity} {item.unit or ''}".strip() if item.quantity else None
+        ingredients.append(
+            GeneratedRecipeIngredient(
+                name=item.name,
+                quantity=qty_str,
+                is_priority=is_priority,
+                available_in_pantry=True,
+            )
+        )
+        if is_priority:
+            priority_used.append(item.name)
+
+    return GeneratedRecipe(
+        title="Pantry Clear-Out Bowl",
+        description=(
+            "A flexible recipe that uses your available ingredients, "
+            "prioritising items that are expiring soon."
+        ),
+        servings=servings,
+        estimated_cook_time_minutes=20,
+        ingredients=ingredients,
+        steps=[
+            "Prep all vegetables — wash, peel, and chop into bite-sized pieces.",
+            "Heat oil in a pan over medium heat.",
+            "Add priority ingredients first and cook for 3–4 minutes.",
+            "Add remaining ingredients and stir well.",
+            "Season with salt and pepper to taste.",
+            "Cook until everything is heated through, then serve.",
+        ],
+        priority_ingredients_used=priority_used,
+        pantry_coverage_percent=0.0,  # recomputed by caller
+    )
