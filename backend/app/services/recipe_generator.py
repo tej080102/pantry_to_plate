@@ -93,3 +93,84 @@ _GEMINI_RECIPE_JSON_SCHEMA: dict[str, Any] = {
         ],
     },
 }
+
+
+# ---------------------------------------------------------------------------
+# Public entry point
+# ---------------------------------------------------------------------------
+
+
+def generate_recipes(db: Session, request: RecipeGenerateRequest) -> RecipeGenerateResponse:
+    """
+    Full pipeline:
+      1. Sort + classify input ingredients by spoilage priority.
+      2. DB-first: find recipe catalog candidates with the best pantry overlap.
+      3. Call Gemini on Vertex AI with the ranked ingredients + DB candidates.
+      4. Fall back to DB-derived recipes when Gemini is unavailable.
+    """
+    priority_names = [
+        i.name for i in request.ingredients if i.priority in _PRIORITY_BUCKETS
+    ]
+    all_names = [i.name for i in request.ingredients]
+
+    # Sort so highest-priority / soonest-expiring items appear first in the prompt
+    sorted_ingredients = _sort_by_priority(request.ingredients)
+
+    # DB-first: find catalog recipes that overlap with our pantry
+    candidates = _find_candidate_recipes(db, all_names, priority_names)
+
+    # Try Gemini; fall back to DB-derived output on any failure
+    try:
+        recipes = _generate_with_gemini(
+            sorted_ingredients=sorted_ingredients,
+            priority_names=priority_names,
+            candidates=candidates,
+            max_recipes=request.max_recipes,
+            servings=request.servings,
+        )
+        method = settings.RECIPE_MODEL or _DEFAULT_RECIPE_MODEL
+    except Exception:
+        logger.warning(
+            "Gemini recipe generation failed; using DB-derived fallback.",
+            exc_info=True,
+        )
+        recipes = _generate_from_db_candidates(
+            candidates=candidates,
+            sorted_ingredients=sorted_ingredients,
+            priority_names=priority_names,
+            max_recipes=request.max_recipes,
+            servings=request.servings,
+        )
+        method = "db_fallback"
+
+    # Recompute pantry coverage in the backend for reliability
+    pantry_name_set = {n.lower() for n in all_names}
+    for recipe in recipes:
+        recipe.pantry_coverage_percent = _compute_coverage(
+            recipe.ingredients, pantry_name_set
+        )
+
+    return RecipeGenerateResponse(
+        recipes=recipes,
+        priority_ingredients=priority_names,
+        generation_method=method,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Step 1 — Priority sorting
+# ---------------------------------------------------------------------------
+
+
+def _sort_by_priority(ingredients: list[IngredientInput]) -> list[IngredientInput]:
+    """Return ingredients sorted HIGH → MEDIUM → LOW → UNKNOWN, then by days_until_expiry."""
+    bucket_order = {"HIGH": 0, "MEDIUM": 1, "LOW": 2, "UNKNOWN": 3}
+    return sorted(
+        ingredients,
+        key=lambda i: (
+            bucket_order.get(i.priority, 3),
+            i.days_until_expiry if i.days_until_expiry is not None else 9999,
+        ),
+    )
+
+
