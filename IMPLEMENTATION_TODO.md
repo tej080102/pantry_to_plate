@@ -41,6 +41,7 @@ Implemented routes in `backend/app/api/routes`:
 - `GET /recipes/{id}`
 - `GET /pantry`
 - `POST /pantry/ingest`
+- `POST /pantry/apply-recipe`
 - `PATCH /pantry/{id}`
 - `DELETE /pantry/{id}`
 - `POST /pantry/{id}/consume`

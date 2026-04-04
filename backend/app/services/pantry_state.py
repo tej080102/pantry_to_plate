@@ -1,22 +1,33 @@
 from __future__ import annotations
 
+import re
 from datetime import date
+from fractions import Fraction
 
 from sqlalchemy.orm import Session, joinedload
 
 from app.models import Ingredient, PantryItem
 from app.schemas.pantry import (
+    PantryApplyRecipeRequest,
+    PantryApplyRecipeResponse,
     PantryArchiveExpiredResponse,
     PantryConsumeResponse,
     PantryConsumeRequest,
     DetectedIngredientInput,
     ManualCorrectionInput,
+    PantryRecipeDeductionRead,
+    PantryRecipeSkippedIngredientRead,
     PantryItemUpdate,
     PantryIngestRequest,
     PantryItemRead,
     UnmatchedDetectedIngredientRead,
 )
-from app.services.ingredient_matching import normalize_text, resolve_ingredient_by_name
+from app.services.ingredient_matching import (
+    ingredient_names_match,
+    normalize_text,
+    resolve_ingredient_by_name,
+    tokenize_significant,
+)
 from app.services.spoilage import (
     estimate_expiry_date,
     is_priority_bucket,
@@ -38,6 +49,74 @@ CATEGORY_SHELF_LIFE_DEFAULTS: dict[str, int] = {
     "pantry": 30,
     "grain": 90,
     "frozen": 30,
+}
+
+_LEADING_AMOUNT_RE = re.compile(
+    r"^\s*(?P<amount>\d+\s+\d+/\d+|\d+/\d+|\d+(?:\.\d+)?)\s*(?P<rest>.*)$"
+)
+
+_UNIT_ALIASES: dict[str, str] = {
+    "g": "g",
+    "gram": "g",
+    "grams": "g",
+    "kg": "kg",
+    "kilogram": "kg",
+    "kilograms": "kg",
+    "oz": "oz",
+    "ounce": "oz",
+    "ounces": "oz",
+    "lb": "lb",
+    "lbs": "lb",
+    "pound": "lb",
+    "pounds": "lb",
+    "ml": "ml",
+    "milliliter": "ml",
+    "milliliters": "ml",
+    "l": "l",
+    "liter": "l",
+    "liters": "l",
+    "cup": "cup",
+    "cups": "cup",
+    "tbsp": "tbsp",
+    "tablespoon": "tbsp",
+    "tablespoons": "tbsp",
+    "tsp": "tsp",
+    "teaspoon": "tsp",
+    "teaspoons": "tsp",
+    "count": "count",
+    "counts": "count",
+    "piece": "count",
+    "pieces": "count",
+    "item": "count",
+    "items": "count",
+    "slice": "slice",
+    "slices": "slice",
+    "clove": "clove",
+    "cloves": "clove",
+    "bunch": "bunch",
+    "bunches": "bunch",
+    "can": "can",
+    "cans": "can",
+    "head": "head",
+    "heads": "head",
+}
+
+_UNIT_BASE_FACTORS: dict[str, tuple[str, float]] = {
+    "g": ("mass", 1.0),
+    "kg": ("mass", 1000.0),
+    "oz": ("mass", 28.3495),
+    "lb": ("mass", 453.592),
+    "ml": ("volume", 1.0),
+    "l": ("volume", 1000.0),
+    "cup": ("volume", 240.0),
+    "tbsp": ("volume", 15.0),
+    "tsp": ("volume", 5.0),
+    "count": ("count", 1.0),
+    "slice": ("slice", 1.0),
+    "clove": ("clove", 1.0),
+    "bunch": ("bunch", 1.0),
+    "can": ("can", 1.0),
+    "head": ("head", 1.0),
 }
 
 
@@ -242,6 +321,155 @@ def _archive_expired_pantry_item_ids(db: Session, user_id: str) -> list[int]:
     return archived_item_ids
 
 
+def _parse_amount(value: str) -> float | None:
+    if not value:
+        return None
+    parts = value.strip().split()
+    try:
+        if len(parts) == 2 and "/" in parts[1]:
+            whole = Fraction(parts[0])
+            fraction = Fraction(parts[1])
+            return float(whole + fraction)
+        return float(Fraction(parts[0]))
+    except (ValueError, ZeroDivisionError):
+        return None
+
+
+def _canonical_unit(value: str | None) -> str | None:
+    if value is None:
+        return None
+    tokens = tokenize_significant(value)
+    for token in tokens:
+        canonical = _UNIT_ALIASES.get(token)
+        if canonical:
+            return canonical
+    return None
+
+
+def _parse_recipe_quantity(
+    ingredient_name: str,
+    quantity_text: str | None,
+) -> tuple[float | None, str | None]:
+    if quantity_text is None:
+        return None, None
+
+    match = _LEADING_AMOUNT_RE.match(quantity_text)
+    if match is None:
+        return None, None
+
+    amount = _parse_amount(match.group("amount"))
+    if amount is None:
+        return None, None
+
+    remaining_tokens = [
+        token
+        for token in tokenize_significant(match.group("rest"))
+        if token not in set(tokenize_significant(ingredient_name))
+    ]
+    unit = None
+    if remaining_tokens:
+        unit = _UNIT_ALIASES.get(remaining_tokens[0])
+
+    return amount, unit
+
+
+def _to_base_amount(amount: float, unit: str) -> tuple[str, float] | None:
+    metadata = _UNIT_BASE_FACTORS.get(unit)
+    if metadata is None:
+        return None
+    kind, factor = metadata
+    return kind, amount * factor
+
+
+def _from_base_amount(amount: float, unit: str) -> float | None:
+    metadata = _UNIT_BASE_FACTORS.get(unit)
+    if metadata is None:
+        return None
+    _, factor = metadata
+    if factor == 0:
+        return None
+    return amount / factor
+
+
+def _resolve_required_base_amount(
+    recipe_amount: float,
+    recipe_unit: str | None,
+    pantry_units: list[str | None],
+) -> tuple[str | None, float] | None:
+    if recipe_unit is not None:
+        return _to_base_amount(recipe_amount, recipe_unit)
+
+    if all(unit is None for unit in pantry_units):
+        return None, recipe_amount
+
+    count_like_units = [unit for unit in pantry_units if unit == "count"]
+    if count_like_units:
+        return "count", recipe_amount
+
+    return None
+
+
+def _matching_pantry_items(
+    pantry_items: list[PantryItem],
+    ingredient_name: str,
+) -> list[PantryItem]:
+    matches = [
+        item
+        for item in pantry_items
+        if item.ingredient is not None
+        and ingredient_names_match(item.ingredient.name, ingredient_name)
+    ]
+    return rank_pantry_items(matches)
+
+
+def _apply_base_deduction_to_item(
+    item: PantryItem,
+    deduction_base_amount: float,
+    base_kind: str | None,
+) -> tuple[bool, float | None] | None:
+    if item.quantity is None:
+        return None
+
+    pantry_unit = _canonical_unit(item.unit)
+    if base_kind is None:
+        if pantry_unit is not None:
+            return None
+        deduction_in_item_unit = deduction_base_amount
+    else:
+        if pantry_unit is None:
+            return None
+        pantry_base_amount = _to_base_amount(item.quantity, pantry_unit)
+        if pantry_base_amount is None or pantry_base_amount[0] != base_kind:
+            return None
+        deduction_in_item_unit = _from_base_amount(deduction_base_amount, pantry_unit)
+        if deduction_in_item_unit is None:
+            return None
+
+    remaining_quantity = item.quantity - deduction_in_item_unit
+    if remaining_quantity <= 1e-9:
+        return True, None
+
+    item.quantity = round(remaining_quantity, 4)
+    return False, item.quantity
+
+
+def _available_base_amount(item: PantryItem, base_kind: str | None) -> float | None:
+    if item.quantity is None:
+        return None
+
+    pantry_unit = _canonical_unit(item.unit)
+    if base_kind is None:
+        return item.quantity if pantry_unit is None else None
+
+    if pantry_unit is None:
+        return None
+
+    pantry_base_amount = _to_base_amount(item.quantity, pantry_unit)
+    if pantry_base_amount is None or pantry_base_amount[0] != base_kind:
+        return None
+    return pantry_base_amount[1]
+
+
 def get_ranked_pantry_items(
     db: Session,
     user_id: str,
@@ -400,6 +628,139 @@ def consume_pantry_item(
     return PantryConsumeResponse(
         deleted=False,
         item=get_ranked_pantry_item(db, pantry_item_id),
+    )
+
+
+def apply_recipe_to_pantry(
+    db: Session,
+    payload: PantryApplyRecipeRequest,
+) -> PantryApplyRecipeResponse:
+    """Deduct pantry quantities for recipe ingredients that can be matched safely."""
+    _archive_expired_pantry_item_ids(db, payload.user_id)
+
+    pantry_items = (
+        db.query(PantryItem)
+        .options(joinedload(PantryItem.ingredient))
+        .filter(
+            PantryItem.user_id == payload.user_id,
+            PantryItem.is_archived.is_(False),
+            PantryItem.is_false_positive.is_(False),
+        )
+        .all()
+    )
+
+    applied_deductions: list[PantryRecipeDeductionRead] = []
+    skipped_ingredients: list[PantryRecipeSkippedIngredientRead] = []
+
+    for ingredient in payload.ingredients:
+        if not ingredient.available_in_pantry:
+            skipped_ingredients.append(
+                PantryRecipeSkippedIngredientRead(
+                    ingredient_name=ingredient.name,
+                    reason="Recipe ingredient is not marked as available in the pantry",
+                )
+            )
+            continue
+
+        recipe_amount, recipe_unit = _parse_recipe_quantity(
+            ingredient.name,
+            ingredient.quantity,
+        )
+        if recipe_amount is None:
+            skipped_ingredients.append(
+                PantryRecipeSkippedIngredientRead(
+                    ingredient_name=ingredient.name,
+                    reason="Recipe quantity could not be parsed safely",
+                )
+            )
+            continue
+
+        matching_items = _matching_pantry_items(pantry_items, ingredient.name)
+        if not matching_items:
+            skipped_ingredients.append(
+                PantryRecipeSkippedIngredientRead(
+                    ingredient_name=ingredient.name,
+                    reason="No active pantry item matched this recipe ingredient",
+                )
+            )
+            continue
+
+        required_base_amount = _resolve_required_base_amount(
+            recipe_amount,
+            recipe_unit,
+            [_canonical_unit(item.unit) for item in matching_items],
+        )
+        if required_base_amount is None:
+            skipped_ingredients.append(
+                PantryRecipeSkippedIngredientRead(
+                    ingredient_name=ingredient.name,
+                    reason="Recipe unit is not compatible with the pantry quantity unit",
+                )
+            )
+            continue
+
+        base_kind, total_required_amount = required_base_amount
+        compatible_items = []
+        total_available_amount = 0.0
+        for item in matching_items:
+            available_amount = _available_base_amount(item, base_kind)
+            if available_amount is None:
+                continue
+            compatible_items.append((item, available_amount))
+            total_available_amount += available_amount
+
+        if total_available_amount + 1e-9 < total_required_amount:
+            skipped_ingredients.append(
+                PantryRecipeSkippedIngredientRead(
+                    ingredient_name=ingredient.name,
+                    reason="Not enough compatible pantry quantity is available",
+                )
+            )
+            continue
+
+        remaining_amount = total_required_amount
+        for item, available_amount in compatible_items:
+            if remaining_amount <= 1e-9:
+                break
+
+            deduction_amount = min(remaining_amount, available_amount)
+            result = _apply_base_deduction_to_item(item, deduction_amount, base_kind)
+            if result is None:
+                continue
+
+            deleted, remaining_quantity = result
+            item_unit = _canonical_unit(item.unit) if base_kind is not None else None
+            display_amount = (
+                _from_base_amount(deduction_amount, item_unit)
+                if item_unit is not None
+                else deduction_amount
+            )
+            if display_amount is None:
+                display_amount = deduction_amount
+
+            applied_deductions.append(
+                PantryRecipeDeductionRead(
+                    ingredient_name=ingredient.name,
+                    pantry_item_id=item.id,
+                    amount=round(display_amount, 4),
+                    unit=item.unit,
+                    deleted=deleted,
+                    remaining_quantity=remaining_quantity,
+                )
+            )
+
+            if deleted:
+                db.delete(item)
+                pantry_items = [pantry_item for pantry_item in pantry_items if pantry_item.id != item.id]
+            remaining_amount -= deduction_amount
+
+    db.commit()
+
+    return PantryApplyRecipeResponse(
+        recipe_title=payload.recipe_title,
+        applied_deductions=applied_deductions,
+        skipped_ingredients=skipped_ingredients,
+        items=get_ranked_pantry_items(db, payload.user_id),
     )
 
 

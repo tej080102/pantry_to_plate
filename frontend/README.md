@@ -28,6 +28,7 @@ You can provide it in your shell before starting Vite, or through a local Vite e
 - `GET /ingredients`
 - `POST /perception/detect`
 - `POST /pantry/ingest`
+- `POST /pantry/apply-recipe`
 - `GET /pantry`
 - `PATCH /pantry/{id}`
 - `DELETE /pantry/{id}`

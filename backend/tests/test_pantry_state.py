@@ -16,6 +16,7 @@ import app.models  # Ensure model metadata is registered.
 from app.core.database import Base
 from app.models import Ingredient, PantryItem
 from app.schemas.pantry import (
+    PantryApplyRecipeRequest,
     DetectedIngredientInput,
     ManualCorrectionInput,
     PantryArchiveExpiredResponse,
@@ -24,6 +25,7 @@ from app.schemas.pantry import (
     PantryItemUpdate,
 )
 from app.services.pantry_state import (
+    apply_recipe_to_pantry,
     archive_expired_pantry_items,
     consume_pantry_item,
     delete_pantry_item,
@@ -443,6 +445,131 @@ class PantryStateTestCase(unittest.TestCase):
             archived = next(item for item in all_items if item.id == expired_item.id)
             self.assertTrue(archived.is_archived)
             self.assertFalse(archived.is_priority)
+
+    def test_apply_recipe_to_pantry_deducts_matching_quantities(self) -> None:
+        with self.session_factory() as session:
+            milk = Ingredient(
+                name="Milk",
+                category="Dairy",
+                standard_unit="ml",
+                estimated_shelf_life_days=7,
+                storage_type="refrigerated",
+            )
+            egg = Ingredient(
+                name="Egg",
+                category="Protein",
+                standard_unit="count",
+                estimated_shelf_life_days=21,
+                storage_type="refrigerated",
+            )
+            session.add_all([milk, egg])
+            session.commit()
+
+            milk_item = PantryItem(
+                user_id="demo-user",
+                ingredient_id=milk.id,
+                quantity=240,
+                unit="ml",
+                date_added=date.today(),
+                estimated_expiry_date=date.today() + timedelta(days=3),
+                is_priority=True,
+            )
+            egg_item = PantryItem(
+                user_id="demo-user",
+                ingredient_id=egg.id,
+                quantity=6,
+                unit="count",
+                date_added=date.today(),
+                estimated_expiry_date=date.today() + timedelta(days=5),
+                is_priority=False,
+            )
+            session.add_all([milk_item, egg_item])
+            session.commit()
+
+            response = apply_recipe_to_pantry(
+                session,
+                PantryApplyRecipeRequest(
+                    user_id="demo-user",
+                    recipe_title="Cheesy Eggs",
+                    ingredients=[
+                        {
+                            "name": "Milk",
+                            "quantity": "2 tablespoons Milk",
+                            "available_in_pantry": True,
+                        },
+                        {
+                            "name": "Egg",
+                            "quantity": "2 large Egg",
+                            "available_in_pantry": True,
+                        },
+                        {
+                            "name": "Salt",
+                            "quantity": "1 pinch Salt",
+                            "available_in_pantry": False,
+                        },
+                    ],
+                ),
+            )
+
+            self.assertEqual(response.recipe_title, "Cheesy Eggs")
+            self.assertEqual(len(response.applied_deductions), 2)
+            self.assertEqual(
+                [deduction.ingredient_name for deduction in response.applied_deductions],
+                ["Milk", "Egg"],
+            )
+            self.assertEqual(len(response.skipped_ingredients), 1)
+            self.assertEqual(response.skipped_ingredients[0].ingredient_name, "Salt")
+
+            session.refresh(milk_item)
+            session.refresh(egg_item)
+            self.assertEqual(milk_item.quantity, 210)
+            self.assertEqual(egg_item.quantity, 4)
+
+    def test_apply_recipe_to_pantry_skips_incompatible_units_without_mutating(self) -> None:
+        with self.session_factory() as session:
+            cheese = Ingredient(
+                name="Cheese",
+                category="Dairy",
+                standard_unit="g",
+                estimated_shelf_life_days=14,
+                storage_type="refrigerated",
+            )
+            session.add(cheese)
+            session.commit()
+
+            pantry_item = PantryItem(
+                user_id="demo-user",
+                ingredient_id=cheese.id,
+                quantity=150,
+                unit="g",
+                date_added=date.today(),
+                estimated_expiry_date=date.today() + timedelta(days=4),
+                is_priority=True,
+            )
+            session.add(pantry_item)
+            session.commit()
+
+            response = apply_recipe_to_pantry(
+                session,
+                PantryApplyRecipeRequest(
+                    user_id="demo-user",
+                    recipe_title="Cheese Sauce",
+                    ingredients=[
+                        {
+                            "name": "Cheese",
+                            "quantity": "2 cups Cheese",
+                            "available_in_pantry": True,
+                        }
+                    ],
+                ),
+            )
+
+            self.assertEqual(len(response.applied_deductions), 0)
+            self.assertEqual(len(response.skipped_ingredients), 1)
+            self.assertIn("compatible", response.skipped_ingredients[0].reason)
+
+            session.refresh(pantry_item)
+            self.assertEqual(pantry_item.quantity, 150)
 
     def test_false_positive_dismissal_excludes_item_from_active_pantry(self) -> None:
         with self.session_factory() as session:

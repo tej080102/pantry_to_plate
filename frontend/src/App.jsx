@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { detectIngredientsFromImage } from "./api/detection";
 import { fetchIngredients } from "./api/ingredients";
 import {
+  applyRecipeToPantry,
   consumePantryItem,
   deletePantryItem,
   fetchPantryItems,
@@ -57,10 +58,12 @@ export default function App() {
   const [detectionError, setDetectionError] = useState("");
   const [pantryError, setPantryError] = useState("");
   const [recipeError, setRecipeError] = useState("");
+  const [recipeActionMessage, setRecipeActionMessage] = useState("");
   const [isDetecting, setIsDetecting] = useState(false);
   const [isSubmittingPantry, setIsSubmittingPantry] = useState(false);
   const [isLoadingPantry, setIsLoadingPantry] = useState(false);
   const [busyPantryItemId, setBusyPantryItemId] = useState(null);
+  const [busyRecipeTitle, setBusyRecipeTitle] = useState("");
   const [recipeItems, setRecipeItems] = useState([]);
   const [recipeGenerationMethod, setRecipeGenerationMethod] = useState("");
   const [priorityIngredients, setPriorityIngredients] = useState([]);
@@ -336,6 +339,7 @@ export default function App() {
 
     setIsGeneratingRecipes(true);
     setRecipeError("");
+    setRecipeActionMessage("");
     try {
       const today = new Date();
       const payload = {
@@ -366,6 +370,64 @@ export default function App() {
       setRecipeError(error.message || "Failed to generate recipes.");
     } finally {
       setIsGeneratingRecipes(false);
+    }
+  }
+
+  async function handleChooseRecipe(recipe) {
+    setBusyRecipeTitle(recipe.title);
+    setRecipeError("");
+    setRecipeActionMessage("");
+    try {
+      const response = await applyRecipeToPantry({
+        user_id: userId,
+        recipe_title: recipe.title,
+        ingredients: recipe.ingredients.map((ingredient) => ({
+          name: ingredient.name,
+          quantity: ingredient.quantity || null,
+          available_in_pantry: ingredient.available_in_pantry,
+        })),
+      });
+
+      if (includeInactive) {
+        await loadPantry();
+      } else {
+        setPantryItems(response.items);
+        setEditingById(
+          Object.fromEntries(
+            response.items.map((item) => [
+              item.id,
+              {
+                quantity: item.quantity ?? "",
+                unit: item.unit ?? "",
+              },
+            ]),
+          ),
+        );
+      }
+
+      const appliedCount = response.applied_deductions.length;
+      const skippedCount = response.skipped_ingredients.length;
+      const messageParts = [`Applied "${response.recipe_title}" to the pantry.`];
+      messageParts.push(
+        appliedCount === 1
+          ? "1 ingredient was deducted."
+          : `${appliedCount} ingredients were deducted.`,
+      );
+      if (skippedCount) {
+        messageParts.push(
+          skippedCount === 1
+            ? "1 ingredient was skipped because its quantity could not be matched safely."
+            : `${skippedCount} ingredients were skipped because their quantities could not be matched safely.`,
+        );
+        messageParts.push(
+          `Skipped: ${response.skipped_ingredients.map((ingredient) => ingredient.ingredient_name).join(", ")}.`,
+        );
+      }
+      setRecipeActionMessage(messageParts.join(" "));
+    } catch (error) {
+      setRecipeError(error.message || "Failed to apply the selected recipe.");
+    } finally {
+      setBusyRecipeTitle("");
     }
   }
 
@@ -517,9 +579,12 @@ export default function App() {
           {stepId === "recipes" ? (
             <>
               <RecipeGeneratorPanel
+                actionMessage={recipeActionMessage}
+                choosingRecipeTitle={busyRecipeTitle}
                 error={recipeError}
                 generationMethod={recipeGenerationMethod}
                 loading={isGeneratingRecipes}
+                onChooseRecipe={handleChooseRecipe}
                 onGenerate={handleGenerateRecipes}
                 priorityIngredients={priorityIngredients}
                 recipes={recipeItems}

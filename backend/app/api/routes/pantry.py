@@ -3,6 +3,8 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.schemas.pantry import (
+    PantryApplyRecipeRequest,
+    PantryApplyRecipeResponse,
     PantryArchiveExpiredResponse,
     PantryConsumeRequest,
     PantryConsumeResponse,
@@ -12,6 +14,7 @@ from app.schemas.pantry import (
     PantryItemUpdate,
 )
 from app.services.pantry_state import (
+    apply_recipe_to_pantry,
     archive_expired_pantry_items,
     consume_pantry_item,
     delete_pantry_item,
@@ -109,6 +112,15 @@ def consume_pantry(
             detail="Pantry item not found",
         )
     return result
+
+
+@router.post("/apply-recipe", response_model=PantryApplyRecipeResponse)
+def apply_recipe(
+    payload: PantryApplyRecipeRequest,
+    db: Session = Depends(get_db),
+) -> PantryApplyRecipeResponse:
+    """Deduct pantry quantities for the selected generated recipe."""
+    return apply_recipe_to_pantry(db, payload)
 
 
 @router.post("/archive-expired", response_model=PantryArchiveExpiredResponse)

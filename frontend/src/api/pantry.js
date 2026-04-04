@@ -34,3 +34,10 @@ export function consumePantryItem(id, amount) {
     body: { amount },
   });
 }
+
+export function applyRecipeToPantry(payload) {
+  return apiRequest("/pantry/apply-recipe", {
+    method: "POST",
+    body: payload,
+  });
+}

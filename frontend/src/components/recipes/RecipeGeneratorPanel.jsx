@@ -1,14 +1,16 @@
 import { useState } from "react";
 
+import { InlineMessage } from "../common/InlineMessage";
 import { SectionCard } from "../common/SectionCard";
 import { StatusBadge } from "../common/StatusBadge";
 
-function RecipeCard({ item }) {
+function RecipeCard({ item, onChooseRecipe, choosingRecipeTitle }) {
   const [isOpen, setIsOpen] = useState(false);
   const matched = item.ingredients.filter((ingredient) => ingredient.available_in_pantry);
   const missing = item.ingredients.filter((ingredient) => !ingredient.available_in_pantry);
   const urgentMatches = matched.filter((ingredient) => ingredient.is_priority);
   const priorityLabel = urgentMatches.length ? "HIGH" : missing.length ? "MEDIUM" : "LOW";
+  const isChoosing = choosingRecipeTitle === item.title;
 
   return (
     <article className="recipe-accordion">
@@ -93,6 +95,17 @@ function RecipeCard({ item }) {
               Priority ingredients used: {item.priority_ingredients_used.join(", ")}
             </p>
           ) : null}
+
+          <div className="button-row">
+            <button
+              className="button"
+              disabled={isChoosing}
+              onClick={() => onChooseRecipe(item)}
+              type="button"
+            >
+              {isChoosing ? "Applying..." : "Choose This Recipe"}
+            </button>
+          </div>
         </div>
       ) : null}
     </article>
@@ -103,7 +116,10 @@ export function RecipeGeneratorPanel({
   recipes,
   loading,
   error,
+  actionMessage,
+  choosingRecipeTitle,
   onGenerate,
+  onChooseRecipe,
 }) {
   return (
     <SectionCard
@@ -115,12 +131,13 @@ export function RecipeGeneratorPanel({
         </button>
       }
     >
-      {error ? <div className="inline-message inline-message--error">{error}</div> : null}
+      {error ? <InlineMessage tone="error">{error}</InlineMessage> : null}
+      {actionMessage ? <InlineMessage tone="info">{actionMessage}</InlineMessage> : null}
 
       {!loading && recipes.length > 0 ? (
-        <div className="inline-message inline-message--info">
+        <InlineMessage tone="info">
           Showing {recipes.length} recipe{recipes.length === 1 ? "" : "s"}.
-        </div>
+        </InlineMessage>
       ) : null}
 
       {!loading && recipes.length === 0 ? (
@@ -131,7 +148,12 @@ export function RecipeGeneratorPanel({
 
       <div className="recipe-grid">
         {recipes.map((item) => (
-          <RecipeCard item={item} key={`${item.title}-${item.estimated_cook_time_minutes}`} />
+          <RecipeCard
+            choosingRecipeTitle={choosingRecipeTitle}
+            item={item}
+            key={`${item.title}-${item.estimated_cook_time_minutes}`}
+            onChooseRecipe={onChooseRecipe}
+          />
         ))}
       </div>
     </SectionCard>

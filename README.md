@@ -178,6 +178,7 @@ The current frontend integrates directly with these backend routes:
 - `/ingredients`
 - `/pantry`
 - `/pantry/ingest`
+- `/pantry/apply-recipe`
 - `/perception/detect`
 - `/pantry/{id}`
 - `/pantry/{id}/consume`
@@ -189,6 +190,7 @@ The current frontend demo flow:
 - falls back to manual or sample detections if the perception provider is unavailable or misconfigured
 - persists pantry state through `/pantry/ingest`
 - manages pantry items through update, consume, delete, dismiss, and automatic expiry cleanup
+- applies selected recipe quantities back to pantry state through `/pantry/apply-recipe`
 - ranks recipe suggestions from the existing recipe catalog when `/recipes/generate` is not available
 
 The frontend does not require additional backend changes on this branch because:

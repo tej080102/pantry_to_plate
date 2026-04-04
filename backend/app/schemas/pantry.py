@@ -70,6 +70,39 @@ class PantryArchiveExpiredResponse(BaseModel):
     archived_item_ids: list[int]
 
 
+class PantryRecipeIngredientInput(BaseModel):
+    name: str = Field(..., min_length=1)
+    quantity: str | None = None
+    available_in_pantry: bool = False
+
+
+class PantryRecipeDeductionRead(BaseModel):
+    ingredient_name: str
+    pantry_item_id: int
+    amount: float
+    unit: str | None = None
+    deleted: bool
+    remaining_quantity: float | None = None
+
+
+class PantryRecipeSkippedIngredientRead(BaseModel):
+    ingredient_name: str
+    reason: str
+
+
+class PantryApplyRecipeRequest(BaseModel):
+    user_id: str = Field(..., min_length=1)
+    recipe_title: str = Field(..., min_length=1)
+    ingredients: list[PantryRecipeIngredientInput] = Field(..., min_length=1)
+
+
+class PantryApplyRecipeResponse(BaseModel):
+    recipe_title: str
+    applied_deductions: list[PantryRecipeDeductionRead]
+    skipped_ingredients: list[PantryRecipeSkippedIngredientRead]
+    items: list[PantryItemRead]
+
+
 class UnmatchedDetectedIngredientRead(BaseModel):
     detected_name: str
     quantity: float | None = None
