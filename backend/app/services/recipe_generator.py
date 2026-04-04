@@ -528,3 +528,4 @@ def _format_reference_recipes(candidates: list[tuple[Recipe, float]]) -> str:
             f"  Ingredients: {', '.join(ingredient_names) or 'none'}"
         )
     return "\n\n".join(parts)
+
