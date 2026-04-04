@@ -5,13 +5,9 @@ import { InlineMessage } from "../common/InlineMessage";
 function PantryItemCard({
   item,
   editingState,
-  consumeAmount,
   onEditChange,
-  onConsumeChange,
   onSave,
-  onConsume,
   onDelete,
-  onToggleFalsePositive,
   busyItemId,
 }) {
   const isBusy = busyItemId === item.id;
@@ -56,7 +52,7 @@ function PantryItemCard({
       </dl>
 
       <div className="pantry-card__controls">
-        <div className="field-row">
+        <div className="pantry-card__editor">
           <label>
             Quantity
             <input
@@ -74,6 +70,9 @@ function PantryItemCard({
               value={editingState.unit}
             />
           </label>
+        </div>
+
+        <div className="pantry-card__actions">
           <button
             className="button button--secondary"
             disabled={isBusy}
@@ -81,48 +80,6 @@ function PantryItemCard({
             type="button"
           >
             Save
-          </button>
-        </div>
-
-        <div className="field-row">
-          <label>
-            Consume amount
-            <input
-              min="0"
-              onChange={(event) => onConsumeChange(item.id, event.target.value)}
-              step="0.1"
-              type="number"
-              value={consumeAmount}
-            />
-          </label>
-          <div className="quick-action-group">
-            {[1, 2, 5].map((amount) => (
-              <button
-                className="chip-button"
-                disabled={isBusy}
-                key={`${item.id}-${amount}`}
-                onClick={() => onConsumeChange(item.id, String(amount))}
-                type="button"
-              >
-                {amount}
-              </button>
-            ))}
-          </div>
-          <button
-            className="button button--secondary"
-            disabled={isBusy || !consumeAmount}
-            onClick={() => onConsume(item.id)}
-            type="button"
-          >
-            Consume
-          </button>
-          <button
-            className="button button--ghost"
-            disabled={isBusy}
-            onClick={() => onToggleFalsePositive(item)}
-            type="button"
-          >
-            {item.is_false_positive ? "Undo Dismiss" : "Dismiss as False Positive"}
           </button>
           <button
             className="button button--danger"
@@ -144,13 +101,9 @@ export function PantryDashboard({
   onToggleIncludeInactive,
   onRefresh,
   onEditChange,
-  onConsumeChange,
   onSave,
-  onConsume,
   onDelete,
-  onToggleFalsePositive,
   editingById,
-  consumeById,
   busyItemId,
   loading,
   error,
@@ -188,16 +141,12 @@ export function PantryDashboard({
         {items.map((item) => (
           <PantryItemCard
             busyItemId={busyItemId}
-            consumeAmount={consumeById[item.id] || ""}
             editingState={editingById[item.id] || { quantity: item.quantity ?? "", unit: item.unit ?? "" }}
             item={item}
             key={item.id}
-            onConsume={onConsume}
-            onConsumeChange={onConsumeChange}
             onDelete={onDelete}
             onEditChange={onEditChange}
             onSave={onSave}
-            onToggleFalsePositive={onToggleFalsePositive}
           />
         ))}
       </div>

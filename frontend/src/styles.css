@@ -597,7 +597,28 @@ textarea {
 
 .pantry-card__controls {
   display: grid;
-  gap: 0.8rem;
+  gap: 1rem;
+  padding-top: 0.2rem;
+}
+
+.pantry-card__editor {
+  display: grid;
+  gap: 0.9rem 1rem;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  align-items: end;
+}
+
+.pantry-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
+.pantry-card__actions .button,
+.pantry-card__actions .button--secondary,
+.pantry-card__actions .button--danger {
+  min-width: 10rem;
 }
 
 .recipe-summary-grid,
@@ -708,5 +729,20 @@ textarea {
   .section-card__header {
     padding: 1rem 1rem 0;
     flex-direction: column;
+  }
+
+  .pantry-card__editor {
+    grid-template-columns: 1fr;
+  }
+
+  .pantry-card__actions {
+    justify-content: stretch;
+  }
+
+  .pantry-card__actions .button,
+  .pantry-card__actions .button--secondary,
+  .pantry-card__actions .button--danger {
+    width: 100%;
+    min-width: 0;
   }
 }

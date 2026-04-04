@@ -4,7 +4,6 @@ import { detectIngredientsFromImage } from "./api/detection";
 import { fetchIngredients } from "./api/ingredients";
 import {
   applyRecipeToPantry,
-  consumePantryItem,
   deletePantryItem,
   fetchPantryItems,
   ingestPantry,
@@ -69,7 +68,6 @@ export default function App() {
   const [priorityIngredients, setPriorityIngredients] = useState([]);
   const [isGeneratingRecipes, setIsGeneratingRecipes] = useState(false);
   const [editingById, setEditingById] = useState({});
-  const [consumeById, setConsumeById] = useState({});
   const [currentStep, setCurrentStep] = useState(0);
 
   useEffect(() => {
@@ -271,13 +269,6 @@ export default function App() {
     }));
   }
 
-  function handleConsumeChange(itemId, value) {
-    setConsumeById((current) => ({
-      ...current,
-      [itemId]: value,
-    }));
-  }
-
   async function withPantryRefresh(itemId, action) {
     setBusyPantryItemId(itemId);
     setPantryError("");
@@ -301,28 +292,8 @@ export default function App() {
     );
   }
 
-  async function handleConsumePantryItem(itemId) {
-    const amount = toOptionalNumber(consumeById[itemId]);
-    if (!amount) {
-      return;
-    }
-
-    await withPantryRefresh(itemId, async () => {
-      await consumePantryItem(itemId, amount);
-      setConsumeById((current) => ({ ...current, [itemId]: "" }));
-    });
-  }
-
   async function handleDeletePantryItem(itemId) {
     await withPantryRefresh(itemId, () => deletePantryItem(itemId));
-  }
-
-  async function handleToggleFalsePositive(item) {
-    await withPantryRefresh(item.id, () =>
-      updatePantryItem(item.id, {
-        is_false_positive: !item.is_false_positive,
-      }),
-    );
   }
 
   async function handleGenerateRecipes() {
@@ -570,19 +541,15 @@ export default function App() {
             <>
               <PantryDashboard
                 busyItemId={busyPantryItemId}
-                consumeById={consumeById}
                 editingById={editingById}
                 error={pantryError}
                 includeInactive={includeInactive}
                 items={pantryItems}
                 loading={isLoadingPantry}
-                onConsume={handleConsumePantryItem}
-                onConsumeChange={handleConsumeChange}
                 onDelete={handleDeletePantryItem}
                 onEditChange={handleEditChange}
                 onRefresh={loadPantry}
                 onSave={handleSavePantryItem}
-                onToggleFalsePositive={handleToggleFalsePositive}
                 onToggleIncludeInactive={setIncludeInactive}
               />
               <div className="wizard-nav">
