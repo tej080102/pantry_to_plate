@@ -433,6 +433,84 @@ img {
   gap: 1rem;
 }
 
+.stack-group {
+  display: grid;
+  gap: 1.1rem;
+}
+
+.list-section {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.list-section__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+.list-section__header h3 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.list-section__header p {
+  margin: 0.35rem 0 0;
+  color: var(--muted);
+}
+
+.section-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.2rem;
+  padding: 0.45rem 0.7rem;
+  border-radius: 999px;
+  background: rgba(93, 107, 45, 0.1);
+  color: var(--olive-dark);
+  font-weight: 800;
+}
+
+.insight-strip {
+  display: grid;
+  gap: 0.85rem;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  margin-bottom: 1.2rem;
+}
+
+.insight-tile {
+  display: grid;
+  gap: 0.25rem;
+  padding: 0.95rem 1rem;
+  border-radius: 18px;
+  border: 1px solid var(--line);
+  background: linear-gradient(135deg, rgba(255, 251, 242, 0.96), rgba(245, 238, 221, 0.9));
+}
+
+.insight-tile span {
+  color: var(--muted);
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.insight-tile strong {
+  font-size: 1.45rem;
+}
+
+.insight-tile--urgent {
+  border-color: rgba(196, 108, 45, 0.25);
+  background: linear-gradient(135deg, rgba(255, 243, 232, 0.96), rgba(247, 224, 202, 0.92));
+}
+
+.filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  margin-bottom: 1rem;
+}
+
 .detection-card,
 .pantry-card,
 .recipe-card {
@@ -514,6 +592,53 @@ img {
   grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
 }
 
+.review-stack,
+.pantry-stack {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.review-row,
+.pantry-row {
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--card-strong);
+}
+
+.review-row {
+  padding: 1rem;
+}
+
+.review-row__topline,
+.review-row__identity,
+.review-row__footer,
+.pantry-row__aside {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.review-row__identity {
+  justify-content: flex-start;
+}
+
+.review-row__fields {
+  display: grid;
+  gap: 0.8rem;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1.4fr) minmax(110px, 0.7fr) minmax(100px, 0.7fr);
+  margin: 0.95rem 0 0.85rem;
+}
+
+.review-row__footer {
+  align-items: flex-start;
+}
+
+.review-row__footer .helper-text {
+  margin: 0;
+}
+
 label {
   display: grid;
   gap: 0.35rem;
@@ -575,6 +700,88 @@ textarea {
 .badge--active {
   background: rgba(93, 107, 45, 0.14);
   color: var(--olive-dark);
+}
+
+.pantry-row {
+  overflow: hidden;
+}
+
+.pantry-row__summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: flex-start;
+  width: 100%;
+  padding: 1rem 1.1rem;
+  border: 0;
+  background: transparent;
+  text-align: left;
+}
+
+.pantry-row__main {
+  display: grid;
+  gap: 0.9rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.pantry-row__titleblock h4 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.pantry-row__titleblock p {
+  margin: 0.3rem 0 0;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.pantry-row__source {
+  display: inline-block;
+  margin-top: 0.4rem;
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.pantry-row__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin: 0;
+}
+
+.pantry-row__meta div {
+  min-width: 100px;
+}
+
+.pantry-row__meta dt {
+  color: var(--muted);
+  font-size: 0.78rem;
+  margin-bottom: 0.2rem;
+}
+
+.pantry-row__meta dd {
+  margin: 0;
+  font-weight: 700;
+}
+
+.pantry-row__aside {
+  flex-direction: column;
+  align-items: flex-end;
+  min-width: fit-content;
+}
+
+.pantry-row__toggle {
+  color: var(--blue);
+  font-weight: 700;
+}
+
+.pantry-row__editor {
+  display: grid;
+  gap: 0.9rem;
+  padding: 0 1.1rem 1.1rem;
+  border-top: 1px solid var(--line);
+  background: rgba(255, 250, 242, 0.78);
 }
 
 .pantry-card__meta {
@@ -729,6 +936,22 @@ textarea {
   .section-card__header {
     padding: 1rem 1rem 0;
     flex-direction: column;
+  }
+
+  .list-section__header,
+  .review-row__topline,
+  .review-row__footer,
+  .pantry-row__summary {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .review-row__fields {
+    grid-template-columns: 1fr;
+  }
+
+  .pantry-row__aside {
+    align-items: flex-start;
   }
 
   .pantry-card__editor {
