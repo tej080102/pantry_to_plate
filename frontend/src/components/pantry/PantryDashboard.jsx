@@ -87,17 +87,6 @@ function PantrySection({
                       </span>
                     ) : null}
                   </div>
-
-                  <dl className="pantry-row__meta">
-                    <div>
-                      <dt>Priority rank</dt>
-                      <dd>{item.priority_rank}</dd>
-                    </div>
-                    <div>
-                      <dt>Confidence</dt>
-                      <dd>{item.detected_confidence != null ? item.detected_confidence : "N/A"}</dd>
-                    </div>
-                  </dl>
                 </div>
 
                 <div className="pantry-row__aside">
