@@ -1,0 +1,81 @@
+steps:
+  - name: "python:3.12-slim"
+    id: "test"
+    entrypoint: bash
+    args:
+      - "-c"
+      - |
+        pip install -r backend/requirements.txt -q
+        cd backend && python -m pytest tests/ -v --tb=short
+
+  - name: "gcr.io/cloud-builders/docker"
+    id: "build-backend"
+    waitFor: ["test"]
+    args:
+      - build
+      - --platform
+      - linux/amd64
+      - -t
+      - "us-central1-docker.pkg.dev/$PROJECT_ID/pantry-to-plate/backend:$SHORT_SHA"
+      - -t
+      - "us-central1-docker.pkg.dev/$PROJECT_ID/pantry-to-plate/backend:latest"
+      - ./backend
+
+  - name: "gcr.io/cloud-builders/docker"
+    id: "build-frontend"
+    waitFor: ["test"]
+    args:
+      - build
+      - --platform
+      - linux/amd64
+      - --build-arg
+      - "VITE_API_BASE_URL=${_BACKEND_URL}"
+      - -t
+      - "us-central1-docker.pkg.dev/$PROJECT_ID/pantry-to-plate/frontend:$SHORT_SHA"
+      - -t
+      - "us-central1-docker.pkg.dev/$PROJECT_ID/pantry-to-plate/frontend:latest"
+      - ./frontend
+
+  - name: "gcr.io/cloud-builders/docker"
+    id: "push-backend"
+    waitFor: ["build-backend"]
+    args: [push, --all-tags, "us-central1-docker.pkg.dev/$PROJECT_ID/pantry-to-plate/backend"]
+
+  - name: "gcr.io/cloud-builders/docker"
+    id: "push-frontend"
+    waitFor: ["build-frontend"]
+    args: [push, --all-tags, "us-central1-docker.pkg.dev/$PROJECT_ID/pantry-to-plate/frontend"]
+
+  - name: "gcr.io/cloud-builders/kubectl"
+    id: "deploy-backend"
+    waitFor: ["push-backend"]
+    args:
+      - set
+      - image
+      - deployment/pantry-backend
+      - "backend=us-central1-docker.pkg.dev/$PROJECT_ID/pantry-to-plate/backend:$SHORT_SHA"
+      - -n
+      - pantry
+    env:
+      - "CLOUDSDK_COMPUTE_REGION=us-central1"
+      - "CLOUDSDK_CONTAINER_CLUSTER=pantry-cluster"
+
+  - name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
+    id: "deploy-frontend"
+    waitFor: ["push-frontend"]
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - pantry-frontend
+      - "--image=us-central1-docker.pkg.dev/$PROJECT_ID/pantry-to-plate/frontend:$SHORT_SHA"
+      - "--region=us-central1"
+      - "--platform=managed"
+      - "--allow-unauthenticated"
+      - "--port=8080"
+
+substitutions:
+  _BACKEND_URL: "/api"
+
+options:
+  logging: CLOUD_LOGGING_ONLY
