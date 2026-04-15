@@ -66,6 +66,7 @@ function PantrySection({
           const editingState = editingById[item.id] || {
             quantity: item.quantity ?? "",
             unit: item.unit ?? "",
+            estimated_expiry_date: item.estimated_expiry_date ?? "",
           };
 
           return (
@@ -119,6 +120,17 @@ function PantrySection({
                       <input
                         onChange={(event) => onEditChange(item.id, "unit", event.target.value)}
                         value={editingState.unit}
+                      />
+                    </label>
+
+                    <label>
+                      Expiry date
+                      <input
+                        onChange={(event) =>
+                          onEditChange(item.id, "estimated_expiry_date", event.target.value)
+                        }
+                        type="date"
+                        value={editingState.estimated_expiry_date || ""}
                       />
                     </label>
                   </div>

@@ -30,6 +30,7 @@ function createDetectionRow(overrides = {}) {
     corrected_name: "",
     quantity: "",
     unit: "",
+    estimated_expiry_date: "",
     ...overrides,
   };
 }
@@ -216,6 +217,7 @@ export default function App() {
           detected_name: row.detected_name.trim(),
           quantity: toOptionalNumber(row.quantity),
           unit: row.unit || null,
+          estimated_expiry_date: toOptionalDate(row.estimated_expiry_date),
         })),
         manual_corrections: filteredRows
           .filter(

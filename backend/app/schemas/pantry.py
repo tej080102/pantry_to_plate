@@ -9,6 +9,7 @@ class DetectedIngredientInput(BaseModel):
     unit: str | None = None
     detected_confidence: float | None = Field(default=None, ge=0, le=1)
     date_added: date | None = None
+    estimated_expiry_date: date | None = None
 
 
 class ManualCorrectionInput(BaseModel):

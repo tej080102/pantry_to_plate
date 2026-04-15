@@ -32,9 +32,6 @@ export function ImageUploadPanel({
           <span className="upload-dropzone__title">
             {file ? file.name : "Choose a pantry photo"}
           </span>
-          <span className="upload-dropzone__subtitle">
-            JPG, PNG, WEBP, GIF, BMP, or TIFF is fine for the demo.
-          </span>
         </label>
 
         {previewUrl ? (

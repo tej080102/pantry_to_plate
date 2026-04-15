@@ -9,6 +9,7 @@ function createBlankRow() {
     corrected_name: "",
     quantity: "",
     unit: "",
+    estimated_expiry_date: "",
   };
 }
 
@@ -35,39 +36,14 @@ function reviewStateForRow(row, ingredientIndex) {
   return "MEDIUM";
 }
 
-function resolvedMatchName(row, ingredientIndex) {
-  const correctedName = row.corrected_name.trim();
-  if (correctedName) {
-    return correctedName;
-  }
-  const autoMatch = ingredientIndex.get(normalizeName(row.detected_name || ""));
-  return autoMatch || "";
-}
-
 function ReviewRow({
   row,
   index,
-  ingredients,
   ingredientIndex,
   onChangeRow,
   onRemoveRow,
 }) {
-  const quickAddIngredients = ingredients.slice(0, 10);
-
-  function suggestionOptions() {
-    const query = normalizeName(row.corrected_name || row.detected_name || "");
-    if (!query) {
-      return quickAddIngredients.slice(0, 6);
-    }
-
-    const exactish = ingredients.filter((ingredient) =>
-      ingredient.name.toLowerCase().includes(query),
-    );
-    return (exactish.length ? exactish : quickAddIngredients).slice(0, 6);
-  }
-
   const rowState = reviewStateForRow(row, ingredientIndex);
-  const resolvedMatch = resolvedMatchName(row, ingredientIndex);
 
   return (
     <article className="review-row">
@@ -121,31 +97,19 @@ function ReviewRow({
             value={row.unit}
           />
         </label>
+
+        <label>
+          Expiry date
+          <input
+            onChange={(event) => onChangeRow(row.id, "estimated_expiry_date", event.target.value)}
+            type="date"
+            value={row.estimated_expiry_date || ""}
+          />
+        </label>
       </div>
 
       <div className="review-row__footer">
-        <p className="helper-text">
-          {resolvedMatch
-            ? `Saving as ${resolvedMatch}.`
-            : "Needs a catalog match before it is easy to trust."}
-        </p>
-
-        <div className="chip-group">
-          {suggestionOptions().map((ingredient) => (
-            <button
-              className={
-                resolvedMatch === ingredient.name
-                  ? "chip-button chip-button--selected"
-                  : "chip-button"
-              }
-              key={`${row.id}-${ingredient.id}`}
-              onClick={() => onChangeRow(row.id, "corrected_name", ingredient.name)}
-              type="button"
-            >
-              {ingredient.name}
-            </button>
-          ))}
-        </div>
+        <p className="helper-text">Edit the row only if you want to rename or refine this ingredient.</p>
       </div>
     </article>
   );
@@ -171,7 +135,7 @@ export function DetectionReviewPanel({
   return (
     <SectionCard
       title="2. Review Detections"
-      subtitle="Clean up the latest scan, then save only the rows you trust."
+      subtitle="Clean up the latest scan, set quantity and expiry, then save what you want."
       actions={
         <div className="button-row button-row--compact">
           <button className="button button--secondary" onClick={onAddRow} type="button">
@@ -217,8 +181,8 @@ export function DetectionReviewPanel({
             <section className="list-section">
               <div className="list-section__header">
                 <div>
-                  <h3>Needs attention</h3>
-                  <p>These rows do not yet have a confident pantry match.</p>
+                  <h3>Needs review</h3>
+                  <p>These rows may need a quick edit before you save them.</p>
                 </div>
                 <StatusBadge label="MEDIUM" />
               </div>
@@ -228,7 +192,6 @@ export function DetectionReviewPanel({
                     key={row.id}
                     index={rows.findIndex((item) => item.id === row.id)}
                     ingredientIndex={ingredientIndex}
-                    ingredients={ingredients}
                     onChangeRow={onChangeRow}
                     onRemoveRow={onRemoveRow}
                     row={row}
@@ -243,7 +206,7 @@ export function DetectionReviewPanel({
               <div className="list-section__header">
                 <div>
                   <h3>Ready to save</h3>
-                  <p>These rows already have enough information to go into the pantry.</p>
+                  <p>These rows are ready to go into the pantry as they are.</p>
                 </div>
                 <StatusBadge label="LOW" />
               </div>
@@ -253,7 +216,6 @@ export function DetectionReviewPanel({
                     key={row.id}
                     index={rows.findIndex((item) => item.id === row.id)}
                     ingredientIndex={ingredientIndex}
-                    ingredients={ingredients}
                     onChangeRow={onChangeRow}
                     onRemoveRow={onRemoveRow}
                     row={row}
@@ -264,28 +226,6 @@ export function DetectionReviewPanel({
           ) : null}
         </div>
       )}
-
-      <div className="quick-add-bar">
-        <span className="helper-text">Quick add common ingredients</span>
-        <div className="chip-group">
-          {ingredients.slice(0, 10).map((ingredient) => (
-            <button
-              className="chip-button"
-              key={`quick-${ingredient.id}`}
-              onClick={() =>
-                onAddRow({
-                  detected_name: ingredient.name.toLowerCase(),
-                  corrected_name: ingredient.name,
-                  unit: ingredient.standard_unit || "",
-                })
-              }
-              type="button"
-            >
-              {ingredient.name}
-            </button>
-          ))}
-        </div>
-      </div>
 
       <datalist id="ingredient-options">
         {ingredients.map((ingredient) => (

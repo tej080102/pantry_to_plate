@@ -627,7 +627,12 @@ img {
 .review-row__fields {
   display: grid;
   gap: 0.8rem;
-  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1.4fr) minmax(110px, 0.7fr) minmax(100px, 0.7fr);
+  grid-template-columns:
+    minmax(0, 1.35fr)
+    minmax(0, 1.35fr)
+    minmax(110px, 0.7fr)
+    minmax(100px, 0.65fr)
+    minmax(150px, 0.85fr);
   margin: 0.95rem 0 0.85rem;
 }
 

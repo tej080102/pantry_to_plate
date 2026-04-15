@@ -545,7 +545,10 @@ def ingest_pantry_items(
 
         item_date_added = detection.date_added or today
         shelf_life_days = _resolve_shelf_life_days(ingredient)
-        expiry_date = estimate_expiry_date(item_date_added, shelf_life_days)
+        expiry_date = detection.estimated_expiry_date or estimate_expiry_date(
+            item_date_added,
+            shelf_life_days,
+        )
         bucket = priority_bucket(expiry_date)
 
         _upsert_pantry_item_from_detection(
